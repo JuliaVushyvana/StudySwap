@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StudySwap</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; padding: 0 16px; }
+    button { padding: 8px 16px; cursor: pointer; }
+    li { margin: 6px 0; }
+    .error { color: red; }
+  </style>
+</head>
+<body>
+  <h1>StudySwap</h1>
+  <p>Платформа для обміну навчальними матеріалами між студентами.</p>
+
+  <button id="loadBtn">Load items</button>
+
+  <ul id="list"></ul>
+  <p id="error" class="error"></p>
+
+  <script>
+    const API_URL = 'http://localhost:3000';
+
+    const loadBtn = document.getElementById('loadBtn');
+    const list = document.getElementById('list');
+    const error = document.getElementById('error');
+
+    loadBtn.addEventListener('click', async () => {
+      list.innerHTML = '';
+      error.textContent = '';
+
+      try {
+        const res = await fetch(`${API_URL}/items`);
+        if (!res.ok) {
+          throw new Error('HTTP ' + res.status);
+        }
+        const items = await res.json();
+
+        items.forEach(item => {
+          const li = document.createElement('li');
+          li.textContent = `${item.id}. ${item.name}`;
+          list.appendChild(li);
+        });
+      } catch (e) {
+        error.textContent = 'Не вдалося завантажити дані: ' + e.message;
+      }
+    });
+  </script>
+</body>
+</html>
