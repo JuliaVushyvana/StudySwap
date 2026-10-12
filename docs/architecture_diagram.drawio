@@ -1,0 +1,98 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Architecture" id="studyswap-arch-v2">
+    <mxGraphModel dx="1493" dy="814" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1250" pageHeight="750" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=22;fontColor=#121a2e;" value="&lt;b&gt;StudySwap: архітектура системи&lt;/b&gt;" vertex="1">
+          <mxGeometry x="40" y="20" width="700" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Client -->
+        <mxCell id="client" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8f169;strokeColor=#121a2e;strokeWidth=2;fontSize=14;fontColor=#121a2e;arcSize=12;" value="&lt;b&gt;Client (браузер)&lt;/b&gt;&lt;br&gt;HTML / CSS / JS&lt;br&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;сторінки, форми, fetch-запити&lt;/font&gt;" vertex="1">
+          <mxGeometry x="30" y="280" width="200" height="120" as="geometry"/>
+        </mxCell>
+
+        <!-- Backend -->
+        <mxCell id="backend" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f6fb;strokeColor=#121a2e;strokeWidth=2;verticalAlign=top;fontSize=14;fontColor=#121a2e;arcSize=4;container=1;collapsible=0;" value="&lt;b&gt;Backend: Node.js + Express (REST API)&lt;/b&gt;" vertex="1">
+          <mxGeometry x="350" y="80" width="520" height="520" as="geometry"/>
+        </mxCell>
+        <mxCell id="layers" parent="backend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#121a2e;strokeColor=#121a2e;fontColor=#ffffff;fontSize=12;" value="api/ (роути) → service/ (логіка) → domain/ (сутності)" vertex="1">
+          <mxGeometry x="20" y="50" width="480" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Основа системи: суцільна індиго-рамка -->
+        <mxCell id="m_search" parent="backend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e9ecff;strokeColor=#3b4bdc;strokeWidth=2;fontSize=13;fontColor=#121a2e;" value="&lt;b&gt;Materials &amp;amp; Search&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;пошук, фільтри, сортування, CRUD матеріалів&lt;/font&gt;" vertex="1">
+          <mxGeometry x="20" y="110" width="230" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- MVP (тижні 3-7): суцільна сіра рамка -->
+        <mxCell id="m_auth" parent="backend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4a5170;strokeWidth=2;fontSize=13;fontColor=#121a2e;" value="&lt;b&gt;Auth&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;реєстрація, вхід, JWT, ролі, скидання пароля&lt;/font&gt;" vertex="1">
+          <mxGeometry x="270" y="110" width="230" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="m_users" parent="backend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4a5170;strokeWidth=2;fontSize=13;fontColor=#121a2e;" value="&lt;b&gt;Users &amp;amp; Profiles&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;профіль користувача й адміна&lt;/font&gt;" vertex="1">
+          <mxGeometry x="20" y="210" width="230" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="m_files" parent="backend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4a5170;strokeWidth=2;fontSize=13;fontColor=#121a2e;" value="&lt;b&gt;File Storage&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;файли матеріалів, перевірка типу й розміру&lt;/font&gt;" vertex="1">
+          <mxGeometry x="270" y="210" width="230" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="m_comments" parent="backend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4a5170;strokeWidth=2;fontSize=13;fontColor=#121a2e;" value="&lt;b&gt;Comments&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;коментарі до матеріалів&lt;/font&gt;" vertex="1">
+          <mxGeometry x="20" y="310" width="230" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="m_moder" parent="backend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4a5170;strokeWidth=2;fontSize=13;fontColor=#121a2e;" value="&lt;b&gt;Complaints &amp;amp; Moderation&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;скарги, блокування, видалення&lt;/font&gt;" vertex="1">
+          <mxGeometry x="270" y="310" width="230" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Пізніше: пунктир -->
+        <mxCell id="m_notif" parent="backend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#8a90a8;strokeWidth=2;dashed=1;fontSize=13;fontColor=#4a5170;" value="&lt;b&gt;Notifications&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;сповіщення про коментарі та скарги&lt;/font&gt;" vertex="1">
+          <mxGeometry x="20" y="410" width="230" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="m_monitor" parent="backend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#8a90a8;strokeWidth=2;dashed=1;fontSize=13;fontColor=#4a5170;" value="&lt;b&gt;Monitoring&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;логи, метрики й трейси (OpenTelemetry)&lt;/font&gt;" vertex="1">
+          <mxGeometry x="270" y="410" width="230" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Database -->
+        <mxCell id="db" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#e9ecff;strokeColor=#3b4bdc;strokeWidth=2;fontSize=14;fontColor=#121a2e;" value="&lt;b&gt;Database&lt;/b&gt;&lt;br&gt;SQLite&lt;br&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;users, materials, comments, reports&lt;/font&gt;" vertex="1">
+          <mxGeometry x="990" y="270" width="220" height="140" as="geometry"/>
+        </mxCell>
+
+        <!-- Зовнішні сервіси (пізніше) -->
+        <mxCell id="ext_mail" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#8a90a8;strokeWidth=2;dashed=1;fontSize=13;fontColor=#4a5170;" value="&lt;b&gt;Email Service&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;листи для скидання пароля&lt;/font&gt;" vertex="1">
+          <mxGeometry x="990" y="440" width="220" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="ext_ai" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#8a90a8;strokeWidth=2;dashed=1;fontSize=13;fontColor=#4a5170;" value="&lt;b&gt;AI Assistant&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 11px&quot;&gt;зовнішнє AI API, допомога з пошуком&lt;/font&gt;" vertex="1">
+          <mxGeometry x="990" y="540" width="220" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- Стрілки (e1 тепер прикріплена до Client) -->
+        <mxCell id="e1" edge="1" parent="1" source="client" target="backend" style="endArrow=classic;startArrow=classic;html=1;strokeWidth=2;strokeColor=#121a2e;fontSize=12;fontColor=#121a2e;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" value="HTTP / JSON">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="backend" target="db" style="endArrow=classic;startArrow=classic;html=1;strokeWidth=2;strokeColor=#3b4bdc;fontSize=12;fontColor=#121a2e;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" value="SQL">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="backend" target="ext_mail" style="endArrow=classic;html=1;dashed=1;strokeWidth=2;strokeColor=#8a90a8;fontSize=12;fontColor=#4a5170;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" value="SMTP">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="backend" target="ext_ai" style="endArrow=classic;html=1;dashed=1;strokeWidth=2;strokeColor=#8a90a8;fontSize=12;fontColor=#4a5170;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.95;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" value="HTTPS">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Легенда: три стани -->
+        <mxCell id="lg_title" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontColor=#121a2e;" value="&lt;b&gt;Легенда&lt;/b&gt;" vertex="1">
+          <mxGeometry x="40" y="640" width="120" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="lg_core" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e9ecff;strokeColor=#3b4bdc;strokeWidth=2;fontSize=12;fontColor=#121a2e;" value="Основа системи" vertex="1">
+          <mxGeometry x="40" y="670" width="150" height="34" as="geometry"/>
+        </mxCell>
+        <mxCell id="lg_mvp" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4a5170;strokeWidth=2;fontSize=12;fontColor=#121a2e;" value="MVP (тижні 3-7)" vertex="1">
+          <mxGeometry x="210" y="670" width="150" height="34" as="geometry"/>
+        </mxCell>
+        <mxCell id="lg_later" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#8a90a8;strokeWidth=2;dashed=1;fontSize=12;fontColor=#4a5170;" value="Пізніше" vertex="1">
+          <mxGeometry x="380" y="670" width="150" height="34" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
