@@ -15,7 +15,7 @@
   <h1>StudySwap</h1>
   <p>Платформа для обміну навчальними матеріалами між студентами.</p>
 
-  <button id="loadBtn">Load items</button>
+  <button id="loadBtn">Load materials</button>
 
   <ul id="list"></ul>
   <p id="error" class="error"></p>
@@ -32,15 +32,15 @@
       error.textContent = '';
 
       try {
-        const res = await fetch(`${API_URL}/items`);
+        const res = await fetch(`${API_URL}/materials`);
         if (!res.ok) {
           throw new Error('HTTP ' + res.status);
         }
-        const items = await res.json();
+        const { items } = await res.json();
 
         items.forEach(item => {
           const li = document.createElement('li');
-          li.textContent = `${item.id}. ${item.name}`;
+          li.textContent = `${item.title} (${item.subject}, ${item.course} курс)`;
           list.appendChild(li);
         });
       } catch (e) {
