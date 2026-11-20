@@ -1,17 +1,8 @@
-const express = require('express');
-const cors = require('cors');
-const db = require('./db');
+const { openDatabase } = require('./db');
+const { createApp } = require('./app');
 
-const app = express();
 const PORT = 3000;
 
-app.use(cors());
-
-app.get('/items', (req, res) => {
-  const items = db.prepare('SELECT id, name FROM items').all();
-  res.json(items);
-});
-
-app.listen(PORT, () => {
+createApp(openDatabase()).listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });

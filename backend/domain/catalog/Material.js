@@ -36,12 +36,27 @@ class MaterialFile {
   }
 }
 
+const TITLE_MAX = 200;
+const DESCRIPTION_MAX = 1000;
+const COURSE_MIN = 1;
+const COURSE_MAX = 6;
+
+// Інваріанти матеріалу: перевіряються і при створенні, і при оновленні
+function assertMaterialFields({ title, description, subject, university, course, type }) {
+  if (!title || title.length > TITLE_MAX) throw new Error(`Назва має бути від 1 до ${TITLE_MAX} символів`);
+  if (description.length > DESCRIPTION_MAX) throw new Error(`Опис до ${DESCRIPTION_MAX} символів`);
+  if (!subject) throw new Error('Потрібен предмет');
+  if (!university) throw new Error('Потрібен університет');
+  if (!Number.isInteger(course) || course < COURSE_MIN || course > COURSE_MAX) throw new Error(`Курс від ${COURSE_MIN} до ${COURSE_MAX}`);
+  if (!MaterialType.includes(type)) throw new Error(`Невідомий тип матеріалу: ${type}`);
+}
+
 class Material {
-  constructor({ id, title, description = '', subject, university, course, type, file, authorId, authorNickname, createdAt = new Date() }) {
-    if (!title || title.length > 200) throw new Error('Назва має бути від 1 до 200 символів');
-    if (description.length > 1000) throw new Error('Опис до 1000 символів');
-    if (!Number.isInteger(course) || course < 1 || course > 6) throw new Error('Курс від 1 до 6');
-    if (!MaterialType.includes(type)) throw new Error(`Невідомий тип матеріалу: ${type}`);
+  constructor({
+    id, title, description = '', subject, university, course, type, file, authorId, authorNickname,
+    status = MaterialStatus.PUBLISHED, createdAt = new Date(), updatedAt = createdAt,
+  }) {
+    assertMaterialFields({ title, description, subject, university, course, type });
     if (!(file instanceof MaterialFile)) throw new Error('Потрібен файл матеріалу');
     this.id = id;
     this.title = title;
@@ -53,17 +68,36 @@ class Material {
     this.file = file;
     this.authorId = authorId;             // автор матеріалу (User.id)
     this.authorNickname = authorNickname;
-    this.status = MaterialStatus.PUBLISHED;
+    this.status = status;
     this.createdAt = createdAt;
+    this.updatedAt = updatedAt;
   }
 
   isPublished() {
     return this.status === MaterialStatus.PUBLISHED;
   }
 
-  // Автор видаляє свій матеріал, адмін — будь-який
-  canBeDeletedBy(user) {
+  // Автор змінює й видаляє свій матеріал, адмін — будь-який
+  canBeEditedBy(user) {
     return user.isAdmin() || user.id === this.authorId;
+  }
+
+  canBeDeletedBy(user) {
+    return this.canBeEditedBy(user);
+  }
+
+  // Часткове оновлення; файл і автора змінити не можна
+  update(changes, user, now = new Date()) {
+    if (!this.canBeEditedBy(user)) throw new Error('Недостатньо прав'); // 403
+    if (!this.isPublished()) throw new Error('Матеріал видалено'); // 404
+    const next = {
+      title: this.title, description: this.description, subject: this.subject,
+      university: this.university, course: this.course, type: this.type,
+      ...changes,
+    };
+    assertMaterialFields(next);
+    Object.assign(this, next);
+    this.updatedAt = now;
   }
 
   delete(user) {
@@ -118,4 +152,7 @@ class Catalog {
   }
 }
 
-module.exports = { Material, MaterialFile, MaterialType, MaterialStatus, Catalog, FORMAT_LIMITS };
+module.exports = {
+  Material, MaterialFile, MaterialType, MaterialStatus, Catalog, FORMAT_LIMITS,
+  TITLE_MAX, DESCRIPTION_MAX, COURSE_MIN, COURSE_MAX,
+};

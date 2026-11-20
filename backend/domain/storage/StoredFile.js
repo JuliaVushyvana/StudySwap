@@ -4,10 +4,10 @@
 const crypto = require('crypto');
 
 class StoredFile {
-  constructor({ originalName, mimeType, sizeBytes, uploadedBy, uploadedAt = new Date() }) {
+  constructor({ id = crypto.randomUUID(), originalName, mimeType, sizeBytes, uploadedBy, uploadedAt = new Date() }) {
     if (!originalName) throw new Error('Потрібна назва файлу');
     if (!mimeType || !mimeType.includes('/')) throw new Error('Некоректний MIME-тип');
-    this.id = crypto.randomUUID(); // ключ у сховищі
+    this.id = id; // ключ у сховищі
     this.originalName = originalName;
     this.mimeType = mimeType;
     this.sizeBytes = sizeBytes;
