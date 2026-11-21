@@ -7,6 +7,14 @@ info:
     Базовий CRUD для ресурсу «Матеріал» (контекст «Каталог матеріалів»).
 
     Усі помилки повертаються в єдиному форматі `ErrorResponse`.
+
+    Наскрізні правила (docs/adr/0004-error-handling-and-resilience.md):
+    - `X-Request-Id` — клієнт може передати свій id запиту (до 128 символів), інакше сервер генерує UUID.
+      Сервер завжди повертає його в заголовку відповіді й у полі `requestId` помилки.
+    - `POST /materials` вимагає `Idempotency-Key`: повтор із тим самим ключем не створює дубліката.
+    - `429` і `503` містять заголовок `Retry-After` (секунди), після якого запит можна повторити.
+      Безпечно повторювати `GET`, `PATCH`, `DELETE` і `POST` з тим самим `Idempotency-Key`.
+    - Коли БД недоступна, `GET /materials` працює в degraded mode: віддає останню збережену копію каталогу з `degraded: true`.
 servers:
   - url: http://localhost:3000
     description: Локальний сервер розробки
@@ -21,17 +29,28 @@ paths:
   /health:
     get:
       tags: [Health]
-      summary: Перевірка, що сервер працює
-      description: Не потребує входу й не звертається до БД. Використовується для моніторингу та healthcheck у Docker.
+      summary: Перевірка стану сервера та його залежностей
+      description: |
+        Не потребує входу й не обмежується rate limit. Перевіряє доступність БД.
+        Використовується для моніторингу та healthcheck у Docker.
       operationId: getHealth
       responses:
         '200':
-          description: Сервер працює
+          description: Сервер і всі залежності працюють
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
-                example: ok
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Сервер працює частково (degraded) — одна із залежностей недоступна
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: degraded
+                checks:
+                  database: fail
 
   /materials:
     post:
@@ -41,6 +60,8 @@ paths:
       operationId: createMaterial
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -58,11 +79,22 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
 
     get:
       tags: [Materials]
       summary: Список матеріалів (пошук, фільтри, сортування)
-      description: Повертає опубліковані матеріали. Доступно всім, зокрема гостям.
+      description: |
+        Повертає опубліковані матеріали. Доступно всім, зокрема гостям.
+        Якщо БД недоступна, повертає останню збережену копію каталогу з `degraded: true` (статус 200);
+        якщо копії ще немає — 503 `CATALOG_UNAVAILABLE`.
       operationId: listMaterials
       parameters:
         - name: q
@@ -111,6 +143,12 @@ paths:
                 $ref: '#/components/schemas/MaterialListResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
 
   /materials/{id}:
     parameters:
@@ -136,6 +174,12 @@ paths:
                 $ref: '#/components/schemas/MaterialResponse'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
 
     patch:
       tags: [Materials]
@@ -165,6 +209,12 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
 
     delete:
       tags: [Materials]
@@ -182,6 +232,12 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
 
 components:
   securitySchemes:
@@ -190,7 +246,50 @@ components:
       scheme: bearer
       bearerFormat: JWT
 
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: |
+        Унікальний ключ операції, який генерує клієнт (зазвичай UUID) і повторює при ретраях.
+        Сервер пам'ятає ключ 24 години в межах користувача: повтор із тим самим тілом повертає
+        той самий `201` без створення дубліката; той самий ключ з іншим тілом — `409 IDEMPOTENCY_KEY_REUSED`.
+      schema:
+        type: string
+        pattern: '^[A-Za-z0-9_.:-]{1,255}$'
+      example: 6f1c2a9e-3b7d-4e21-9c55-8a0d4f7b1e33
+
+  headers:
+    X-Request-Id:
+      description: Ідентифікатор запиту (з запиту клієнта або згенерований сервером)
+      schema:
+        type: string
+    Retry-After:
+      description: Через скільки секунд можна повторити запит
+      schema:
+        type: integer
+        minimum: 1
+
   schemas:
+    HealthResponse:
+      type: object
+      required: [status, checks]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        checks:
+          type: object
+          description: Стан кожної залежності
+          additionalProperties:
+            type: string
+            enum: [ok, fail]
+      example:
+        status: ok
+        checks:
+          database: ok
+
     MaterialType:
       type: string
       description: Тип матеріалу
@@ -346,7 +445,7 @@ components:
     MaterialListResponse:
       type: object
       description: Сторінка результатів пошуку
-      required: [items, total, page]
+      required: [items, total, page, degraded]
       properties:
         items:
           type: array
@@ -358,6 +457,9 @@ components:
         page:
           type: integer
           description: Номер поточної сторінки
+        degraded:
+          type: boolean
+          description: true — БД недоступна, дані з останньої збереженої копії каталогу й можуть бути застарілими
 
     ErrorResponse:
       type: object
@@ -369,10 +471,14 @@ components:
           DESCRIPTION_TOO_LONG, SUBJECT_REQUIRED, UNIVERSITY_REQUIRED, COURSE_OUT_OF_RANGE,
           INVALID_TYPE, FILE_REQUIRED, INVALID_FILE, EMPTY_UPDATE, UNKNOWN_FIELD,
           INVALID_BODY, INVALID_JSON, QUERY_TOO_LONG, INVALID_QUERY, INVALID_SORT, INVALID_PAGE;
+        - ValidationError (400), Idempotency-Key: IDEMPOTENCY_KEY_REQUIRED, INVALID_IDEMPOTENCY_KEY;
         - Unauthorized (401): UNAUTHORIZED;
         - Forbidden (403): FORBIDDEN;
         - NotFound (404): MATERIAL_NOT_FOUND, ROUTE_NOT_FOUND;
-        - InternalError (500): code = null.
+        - Conflict (409): IDEMPOTENCY_KEY_REUSED;
+        - TooManyRequests (429): RATE_LIMITED;
+        - InternalError (500): code = null;
+        - ServiceUnavailable (503): REQUEST_TIMEOUT, CATALOG_UNAVAILABLE, SERVICE_UNAVAILABLE.
 
         Політика кодів — docs/adr/0003-api-style-and-error-model.md.
       required: [error, requestId]
@@ -380,7 +486,7 @@ components:
         error:
           type: string
           description: Категорія помилки
-          enum: [ValidationError, Unauthorized, Forbidden, NotFound, InternalError]
+          enum: [ValidationError, Unauthorized, Forbidden, NotFound, Conflict, TooManyRequests, InternalError, ServiceUnavailable]
         code:
           type: string
           nullable: true
@@ -411,6 +517,66 @@ components:
           type: string
 
   responses:
+    Conflict:
+      description: Idempotency-Key уже використано з іншим тілом запиту
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Conflict
+            code: IDEMPOTENCY_KEY_REUSED
+            details: null
+            requestId: 1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f
+    TooManyRequests:
+      description: Перевищено ліміт запитів; повторити після Retry-After
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: TooManyRequests
+            code: RATE_LIMITED
+            details: null
+            requestId: 2d3e4f5a-6b7c-4d8e-9f0a-1b2c3d4e5f6a
+    InternalError:
+      description: Непередбачена помилка сервера
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: InternalError
+            code: null
+            details: null
+            requestId: 3e4f5a6b-7c8d-4e9f-0a1b-2c3d4e5f6a7b
+    ServiceUnavailable:
+      description: Сервер тимчасово не може обробити запит (таймаут, недоступна БД); повторити після Retry-After
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: ServiceUnavailable
+            code: REQUEST_TIMEOUT
+            details: null
+            requestId: 4f5a6b7c-8d9e-4f0a-1b2c-3d4e5f6a7b8c
     BadRequest:
       description: Некоректні дані (валідація)
       content:

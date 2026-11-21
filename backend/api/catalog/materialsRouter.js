@@ -10,7 +10,7 @@ function createMaterialsRouter({ materialService }) {
   });
 
   router.post('/', (req, res) => {
-    res.status(201).json(materialService.create(req.user, req.body));
+    res.status(201).json(materialService.create(req.user, req.body, req.get('Idempotency-Key')));
   });
 
   router.get('/:id', (req, res) => {

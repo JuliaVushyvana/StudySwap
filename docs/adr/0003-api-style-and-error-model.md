@@ -21,7 +21,7 @@
 | `GET` | `/materials/{id}` | деталі матеріалу | `200` `MaterialResponse` |
 | `PATCH` | `/materials/{id}` | часткове оновлення (лише передані поля) | `200` `MaterialResponse` |
 | `DELETE` | `/materials/{id}` | видалити (м'яко: статус `deleted`) | `204` без тіла |
-| `GET` | `/health` | перевірка, що сервер живий | `200` `text/plain` `ok` |
+| `GET` | `/health` | стан сервера й БД | `200` `{ status: "ok" }` або `503` degraded (ADR-0004) |
 
 - **`PATCH`, а не `PUT`.** Клієнт змінює одне-два поля, а файл матеріалу змінювати не можна, тож повна заміна ресурсу (`PUT`) не потрібна. `PUT` не реалізуємо.
 - **JSON у тілі й відповіді**, поля в `camelCase` (`fileId`, `authorNickname`, `createdAt`). Дати — рядки ISO 8601 в UTC.
@@ -45,7 +45,7 @@
 
 | Поле | Значення |
 |---|---|
-| `error` | категорія, однозначно задає HTTP-статус: `ValidationError`, `Unauthorized`, `Forbidden`, `NotFound`, `InternalError` |
+| `error` | категорія, однозначно задає HTTP-статус: `ValidationError`, `Unauthorized`, `Forbidden`, `NotFound`, `Conflict`, `TooManyRequests`, `InternalError`, `ServiceUnavailable` |
 | `code` | конкретна причина у `UPPER_SNAKE_CASE` для програмної обробки на фронтенді; `null`, якщо уточнення немає |
 | `details` | для валідації — усі знайдені помилки полів `[{ field, message }]`, щоб форма підсвітила їх одразу; інакше `null` |
 | `requestId` | той самий id, що в заголовку `X-Request-Id`; за ним шукаємо запит у логах |
@@ -69,8 +69,10 @@
 | `401` | `Unauthorized` | дія потребує входу, а токена немає або він недійсний | `UNAUTHORIZED` |
 | `403` | `Forbidden` | користувач відомий, але прав немає (не автор і не адмін) | `FORBIDDEN` |
 | `404` | `NotFound` | ресурсу немає, він видалений, або такого маршруту немає | `MATERIAL_NOT_FOUND`, `ROUTE_NOT_FOUND` |
-| `409` | `Conflict` | конфлікт зі станом системи; з'явиться з `POST /auth/register` (email уже зайнятий) | `EMAIL_TAKEN` |
+| `409` | `Conflict` | конфлікт зі станом системи: `Idempotency-Key` з іншим тілом; з `POST /auth/register` — email уже зайнятий | `IDEMPOTENCY_KEY_REUSED`, `EMAIL_TAKEN` |
+| `429` | `TooManyRequests` | перевищено ліміт запитів, є `Retry-After` (ADR-0004) | `RATE_LIMITED` |
 | `500` | `InternalError` | непередбачена помилка сервера | `null` |
+| `503` | `ServiceUnavailable` | таймаут обробки або недоступна БД, є `Retry-After` (ADR-0004) | `REQUEST_TIMEOUT`, `CATALOG_UNAVAILABLE`, `SERVICE_UNAVAILABLE` |
 
 Правила, які прибирають неоднозначність:
 

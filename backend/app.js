@@ -9,31 +9,49 @@ const { createFileRepository } = require('./service/storage/fileRepository');
 const { createStorageService } = require('./service/storage/storageService');
 const { createMaterialRepository } = require('./service/catalog/materialRepository');
 const { createMaterialService } = require('./service/catalog/materialService');
+const { createIdempotencyRepository } = require('./service/idempotency/idempotencyRepository');
+const { createIdempotencyService } = require('./service/idempotency/idempotencyService');
+const { createHealthService, databaseProbe } = require('./service/health/healthService');
 
 const { requestId } = require('./api/middleware/requestId');
 const { authenticate } = require('./api/middleware/auth');
 const { errorHandler, notFound } = require('./api/middleware/errorHandler');
+const { createRateLimiter } = require('./api/middleware/rateLimit');
+const { requestTimeout } = require('./api/middleware/timeout');
+const { createFaultInjection } = require('./api/middleware/faultInjection');
 const { createMaterialsRouter } = require('./api/catalog/materialsRouter');
 const { createHealthRouter } = require('./api/health/healthRouter');
 const { seed } = require('./seed');
+const { config: defaultConfig } = require('./config');
 
-function createApp(db) {
+function createApp(db, config = defaultConfig) {
   const userRepository = createUserRepository(db);
   const fileRepository = createFileRepository(db);
   const materialRepository = createMaterialRepository(db);
+  const idempotencyRepository = createIdempotencyRepository(db);
   seed({ userRepository, fileRepository, materialRepository });
 
   const accessService = createAccessService({ userRepository });
   const storageService = createStorageService({ fileRepository });
-  const materialService = createMaterialService({ materialRepository, storageService });
+  const idempotencyService = createIdempotencyService({ idempotencyRepository });
+  const materialService = createMaterialService({ materialRepository, storageService, idempotencyService });
+  const healthService = createHealthService({ probes: { database: databaseProbe(db) } });
 
   const app = express();
-  app.use(cors());
+  // requestId перед cors: X-Request-Id потрапляє й у відповіді на preflight (OPTIONS), які cors завершує сам
   app.use(requestId);
+  // Браузер має право надсилати Idempotency-Key і X-Request-Id та читати X-Request-Id і Retry-After
+  app.use(cors({ exposedHeaders: ['X-Request-Id', 'Retry-After'] }));
+  app.use(requestTimeout(config.requestTimeoutMs));
+
+  // /health не обмежується лімітом і не ламається штучно: моніторинг має бачити справжній стан
+  app.use('/health', createHealthRouter({ healthService }));
+
+  app.use(createRateLimiter(config.rateLimit));
+  if (config.chaos) app.use(createFaultInjection({}));
   app.use(express.json());
   app.use(authenticate(accessService));
 
-  app.use('/health', createHealthRouter());
   app.use('/materials', createMaterialsRouter({ materialService }));
 
   app.use(notFound);
