@@ -14,8 +14,25 @@ servers:
 tags:
   - name: Materials
     description: Каталог навчальних матеріалів
+  - name: Health
+    description: Службові ендпоїнти
 
 paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Перевірка, що сервер працює
+      description: Не потребує входу й не звертається до БД. Використовується для моніторингу та healthcheck у Docker.
+      operationId: getHealth
+      responses:
+        '200':
+          description: Сервер працює
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: ok
+
   /materials:
     post:
       tags: [Materials]
@@ -347,9 +364,17 @@ components:
       description: |
         Єдиний формат помилки для всіх ендпоїнтів.
 
-        Коди (`code`): TITLE_REQUIRED, TITLE_TOO_LONG, DESCRIPTION_TOO_LONG,
-        COURSE_OUT_OF_RANGE, INVALID_TYPE, FILE_REQUIRED, EMPTY_UPDATE,
-        UNAUTHORIZED, FORBIDDEN, MATERIAL_NOT_FOUND.
+        Коди (`code`) за категоріями:
+        - ValidationError (400): TITLE_REQUIRED, TITLE_TOO_LONG, INVALID_DESCRIPTION,
+          DESCRIPTION_TOO_LONG, SUBJECT_REQUIRED, UNIVERSITY_REQUIRED, COURSE_OUT_OF_RANGE,
+          INVALID_TYPE, FILE_REQUIRED, INVALID_FILE, EMPTY_UPDATE, UNKNOWN_FIELD,
+          INVALID_BODY, INVALID_JSON, QUERY_TOO_LONG, INVALID_QUERY, INVALID_SORT, INVALID_PAGE;
+        - Unauthorized (401): UNAUTHORIZED;
+        - Forbidden (403): FORBIDDEN;
+        - NotFound (404): MATERIAL_NOT_FOUND, ROUTE_NOT_FOUND;
+        - InternalError (500): code = null.
+
+        Політика кодів — docs/adr/0003-api-style-and-error-model.md.
       required: [error, requestId]
       properties:
         error:
