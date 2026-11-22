@@ -4,49 +4,127 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>StudySwap</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; padding: 0 16px; }
-    button { padding: 8px 16px; cursor: pointer; }
-    li { margin: 6px 0; }
-    .error { color: red; }
-  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <h1>StudySwap</h1>
-  <p>Платформа для обміну навчальними матеріалами між студентами.</p>
+  <header class="topbar">
+    <a class="logo" href="#">StudySwap</a>
+    <div class="topbar-actions">
+      <span class="health" title="GET /health (таймаут 1 с)">
+        <span id="healthDot" class="dot"></span><span id="healthText">Сервер: перевірка…</span>
+      </span>
+      <button id="healthBtn" class="btn btn-outline btn-sm" data-api>Перевірити /health</button>
+      <a href="#add" class="btn btn-primary">+ Додати матеріал</a>
+      <span class="bell" aria-hidden="true">🔔<i></i></span>
+    </div>
+  </header>
 
-  <button id="loadBtn">Load materials</button>
+  <main class="container">
+    <h1 class="hero">StudySwap</h1>
 
-  <ul id="list"></ul>
-  <p id="error" class="error"></p>
+    <!-- Degraded mode: з'являється після 3 збоїв поспіль -->
+    <div id="banner" class="banner" role="alert">
+      <span class="banner-icon">⚠</span>
+      <span id="bannerText">Сервер перевантажено. Кнопки тимчасово вимкнено.</span>
+      <button id="retryNowBtn" class="btn btn-outline btn-sm">Спробувати зараз</button>
+    </div>
 
-  <script>
-    const API_URL = 'http://localhost:3000';
+    <form id="searchForm" class="search">
+      <input id="searchInput" name="q" maxlength="100" placeholder="Назва матеріалу" autocomplete="off">
+      <button id="loadBtn" type="submit" class="btn btn-primary" data-api>Знайти</button>
+    </form>
+    <p class="hint">Порожній пошук показує всі матеріали. Пошук іде за назвою.</p>
 
-    const loadBtn = document.getElementById('loadBtn');
-    const list = document.getElementById('list');
-    const error = document.getElementById('error');
+    <section class="card">
+      <h2>Рекомендації: нові матеріали</h2>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr><th>Назва</th><th>Предмет</th><th>Курс</th><th>Універ</th><th>Тип</th><th>Автор</th><th>Дата</th></tr>
+          </thead>
+          <tbody id="list"></tbody>
+        </table>
+      </div>
+      <p id="listError" class="result bad"></p>
+    </section>
 
-    loadBtn.addEventListener('click', async () => {
-      list.innerHTML = '';
-      error.textContent = '';
+    <section class="card card-narrow" id="add">
+      <h2 class="title-lg">Додати матеріал</h2>
+      <form id="createForm">
+        <label class="field">Назва матеріалу
+          <input name="title" value="Шпаргалка з архітектури" maxlength="200">
+        </label>
+        <label class="field">Предмет
+          <input name="subject" value="Архітектура ПЗ" list="subjects">
+          <datalist id="subjects">
+            <option>Бази даних</option><option>Вебпрограмування</option><option>Алгоритми</option>
+            <option>ООП</option><option>Архітектура ПЗ</option>
+          </datalist>
+        </label>
+        <label class="field">Опис
+          <textarea name="description" rows="4" maxlength="1000" placeholder="Коротко про матеріал (до 1000 символів)"></textarea>
+        </label>
 
-      try {
-        const res = await fetch(`${API_URL}/materials`);
-        if (!res.ok) {
-          throw new Error('HTTP ' + res.status);
-        }
-        const { items } = await res.json();
+        <div class="group">
+          <div class="group-head two"><span>Універ</span><span>Курс</span></div>
+          <div class="group-body two">
+            <input name="university" value="КПІ" list="universities" aria-label="Університет">
+            <datalist id="universities"><option>КПІ</option><option>ЛНУ ім. Франка</option><option>ХНУ</option><option>КНУ</option></datalist>
+            <select name="course" aria-label="Курс">
+              <option value="1">1 курс</option><option value="2">2 курс</option><option value="3" selected>3 курс</option>
+              <option value="4">4 курс</option><option value="5">5 курс</option><option value="6">6 курс</option>
+            </select>
+          </div>
+        </div>
 
-        items.forEach(item => {
-          const li = document.createElement('li');
-          li.textContent = `${item.title} (${item.subject}, ${item.course} курс)`;
-          list.appendChild(li);
-        });
-      } catch (e) {
-        error.textContent = 'Не вдалося завантажити дані: ' + e.message;
-      }
-    });
-  </script>
+        <div class="group">
+          <div class="group-head"><span>Тип</span></div>
+          <div class="types">
+            <label><input type="radio" name="type" value="конспект" checked> Конспект</label>
+            <label><input type="radio" name="type" value="лекція"> Лекція</label>
+            <label><input type="radio" name="type" value="практична"> Практична</label>
+            <label><input type="radio" name="type" value="лабораторна"> Лабораторна</label>
+            <label><input type="radio" name="type" value="презентація"> Презентація</label>
+            <label><input type="radio" name="type" value="відео"> Відео</label>
+            <label><input type="radio" name="type" value="аудіо"> Аудіо</label>
+            <label><input type="radio" name="type" value="курсова"> Курсова</label>
+            <label><input type="radio" name="type" value="дипломна"> Дипломна</label>
+            <label><input type="radio" name="type" value="магістерська"> Магістерська</label>
+          </div>
+        </div>
+
+        <label class="dropzone">
+          <span>Файл (поки що <b>fileId</b> уже завантаженого файлу)</span>
+          <input name="fileId" value="f-free01">
+        </label>
+
+        <label class="field">Від імені (тестовий вхід)
+          <select name="token">
+            <option value="dev-token-anna">Anna</option>
+            <option value="dev-token-ivan">Ivan</option>
+            <option value="dev-token-admin">Admin</option>
+          </select>
+        </label>
+
+        <button type="submit" class="btn btn-primary btn-block" data-api>Застосувати</button>
+        <button type="button" id="doubleBtn" class="btn btn-outline btn-block" data-api>Демо: подвійний клік (2 POST одночасно)</button>
+      </form>
+      <p id="createResult" class="result"></p>
+    </section>
+
+    <section class="card">
+      <h2>Журнал запитів</h2>
+      <div id="log"></div>
+      <p class="hint">Кожен запит має X-Request-Id · повтори на 5xx і мережеві збої з backoff + jitter ·
+        на 429 чекаємо Retry-After · таймаут через AbortController · POST з Idempotency-Key.</p>
+    </section>
+  </main>
+
+  <script src="lib/http.js"></script>
+  <script src="lib/idempotency.js"></script>
+  <script src="lib/degraded.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
