@@ -4,7 +4,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const { createMaterialService } = require('../../service/catalog/materialService');
-const { ValidationError, ForbiddenError, NotFoundError, UnauthorizedError } = require('../../service/errors');
+const { createIdempotencyService } = require('../../service/idempotency/idempotencyService');
+const { ValidationError, ForbiddenError, NotFoundError, UnauthorizedError, ServiceUnavailableError } = require('../../service/errors');
 const { User, Role } = require('../../domain/access/User');
 
 const NOW = new Date('2026-11-20T10:15:00Z');
@@ -31,19 +32,34 @@ const fakeStorageService = {
   }[id] || null),
 };
 
+function fakeIdempotencyRepository() {
+  const rows = new Map();
+  return {
+    find: (userId, key) => rows.get(`${userId}:${key}`) || null,
+    save: ({ userId, key, ...entry }) => { rows.set(`${userId}:${key}`, entry); },
+  };
+}
+
+// Кожен виклик create у тестах — окрема операція з власним Idempotency-Key
+let keyCounter = 0;
+const key = () => `key-${++keyCounter}`;
+
+const silentLogger = { warn: () => {} };
+
 const validBody = () => ({
   title: 'Нормалізація БД', description: '1НФ–3НФ з прикладами', subject: 'Бази даних',
   university: 'КПІ', course: 2, type: 'конспект', fileId: 'f-8c1e2b',
 });
 
-function setup() {
-  return createMaterialService({ materialRepository: fakeMaterialRepository(), storageService: fakeStorageService, now: () => NOW });
+function setup({ materialRepository = fakeMaterialRepository(), now = () => NOW } = {}) {
+  const idempotencyService = createIdempotencyService({ idempotencyRepository: fakeIdempotencyRepository(), now });
+  return createMaterialService({ materialRepository, storageService: fakeStorageService, idempotencyService, now, logger: silentLogger });
 }
 
 test('create: коректні дані → матеріал за схемою MaterialResponse', () => {
   const service = setup();
 
-  const created = service.create(anna, validBody());
+  const created = service.create(anna, validBody(), key());
 
   assert.deepEqual(created, {
     id: 100,
@@ -66,7 +82,7 @@ test('create: без title → ValidationError TITLE_REQUIRED', () => {
   const service = setup();
   const { title, ...withoutTitle } = validBody();
 
-  assert.throws(() => service.create(anna, withoutTitle), (err) => {
+  assert.throws(() => service.create(anna, withoutTitle, key()), (err) => {
     assert.ok(err instanceof ValidationError);
     assert.equal(err.code, 'TITLE_REQUIRED');
     assert.deepEqual(err.details, [{ field: 'title', message: 'Назва обов\'язкова' }]);
@@ -77,18 +93,18 @@ test('create: без title → ValidationError TITLE_REQUIRED', () => {
 
 test('create: файл поза лімітами → ValidationError INVALID_FILE', () => {
   const service = setup();
-  assert.throws(() => service.create(anna, { ...validBody(), fileId: 'f-huge' }), { code: 'INVALID_FILE' });
+  assert.throws(() => service.create(anna, { ...validBody(), fileId: 'f-huge' }, key()), { code: 'INVALID_FILE' });
 });
 
 test('create: без користувача → UnauthorizedError', () => {
   const service = setup();
-  assert.throws(() => service.create(null, validBody()), UnauthorizedError);
+  assert.throws(() => service.create(null, validBody(), key()), UnauthorizedError);
 });
 
 test('update: автор змінює поля, updatedAt оновлюється', () => {
   let now = NOW;
-  const service = createMaterialService({ materialRepository: fakeMaterialRepository(), storageService: fakeStorageService, now: () => now });
-  const { id } = service.create(anna, validBody());
+  const service = setup({ now: () => now });
+  const { id } = service.create(anna, validBody(), key());
   now = new Date('2026-11-20T11:20:00Z');
 
   const updated = service.update(anna, String(id), { title: 'Нормалізація БД (оновлено)', course: 3 });
@@ -100,7 +116,7 @@ test('update: автор змінює поля, updatedAt оновлюється
 
 test('update: чужий матеріал → ForbiddenError, порожнє тіло → EMPTY_UPDATE', () => {
   const service = setup();
-  const { id } = service.create(anna, validBody());
+  const { id } = service.create(anna, validBody(), key());
 
   assert.throws(() => service.update(ivan, id, { title: 'Моє' }), ForbiddenError);
   assert.throws(() => service.update(anna, id, {}), { code: 'EMPTY_UPDATE' });
@@ -109,7 +125,7 @@ test('update: чужий матеріал → ForbiddenError, порожнє т�
 
 test('remove: адмін видаляє чужий матеріал, після цього він 404', () => {
   const service = setup();
-  const { id } = service.create(anna, validBody());
+  const { id } = service.create(anna, validBody(), key());
 
   service.remove(admin, id);
 
@@ -119,10 +135,53 @@ test('remove: адмін видаляє чужий матеріал, після 
 
 test('list: пошук, фільтр і некоректний параметр', () => {
   const service = setup();
-  service.create(anna, validBody());
-  service.create(ivan, { ...validBody(), title: 'Принципи ООП', subject: 'ООП', course: 1 });
+  service.create(anna, validBody(), key());
+  service.create(ivan, { ...validBody(), title: 'Принципи ООП', subject: 'ООП', course: 1 }, key());
 
   assert.deepEqual(service.list({ q: 'нормалізація', course: '2' }).items.map((m) => m.title), ['Нормалізація БД']);
   assert.equal(service.list({ sort: 'title' }).total, 2);
   assert.throws(() => service.list({ course: '9' }), { code: 'COURSE_OUT_OF_RANGE' });
+});
+
+test('create: повтор із тим самим Idempotency-Key → той самий матеріал без дубліката', () => {
+  const service = setup();
+  const idemKey = key();
+
+  const first = service.create(anna, validBody(), idemKey);
+  const retry = service.create(anna, validBody(), idemKey);
+
+  assert.deepEqual(retry, first);
+  assert.equal(service.list({}).total, 1);
+});
+
+test('create: без Idempotency-Key → ValidationError IDEMPOTENCY_KEY_REQUIRED', () => {
+  const service = setup();
+  assert.throws(() => service.create(anna, validBody(), undefined), { code: 'IDEMPOTENCY_KEY_REQUIRED' });
+  assert.equal(service.list({}).total, 0);
+});
+
+test('list: БД недоступна → degraded mode з останньої копії каталогу', () => {
+  const materialRepository = fakeMaterialRepository();
+  const service = setup({ materialRepository });
+  service.create(anna, validBody(), key());
+  assert.equal(service.list({}).degraded, false);
+
+  materialRepository.findPublished = () => { throw new Error('SQLITE_IOERR'); };
+
+  const degraded = service.list({ q: 'нормалізація' });
+  assert.equal(degraded.degraded, true);
+  assert.deepEqual(degraded.items.map((m) => m.title), ['Нормалізація БД']);
+});
+
+test('list: БД недоступна і копії ще немає → ServiceUnavailableError CATALOG_UNAVAILABLE', () => {
+  const materialRepository = fakeMaterialRepository();
+  materialRepository.findPublished = () => { throw new Error('SQLITE_IOERR'); };
+  const service = setup({ materialRepository });
+
+  assert.throws(() => service.list({}), (err) => {
+    assert.ok(err instanceof ServiceUnavailableError);
+    assert.equal(err.code, 'CATALOG_UNAVAILABLE');
+    assert.ok(err.retryAfter > 0);
+    return true;
+  });
 });

@@ -7,6 +7,10 @@ const STATUS = {
   Unauthorized: 401,
   Forbidden: 403,
   NotFound: 404,
+  Conflict: 409,
+  TooManyRequests: 429,
+  InternalError: 500,
+  ServiceUnavailable: 503,
 };
 
 function sendError(res, req, status, { error, code = null, details = null }) {
@@ -19,7 +23,14 @@ function notFound(req, res) {
 
 // eslint-disable-next-line no-unused-vars
 function errorHandler(err, req, res, next) {
+  // Відповідь уже віддано (наприклад, спрацював таймаут, а обробник упав пізніше): лише логуємо
+  if (res.headersSent) {
+    console.error(`[${req.id}] помилка після відправленої відповіді:`, err.message);
+    return;
+  }
   if (err instanceof AppError) {
+    if (err.retryAfter) res.set('Retry-After', String(err.retryAfter));
+    if (err.error === 'InternalError') console.error(`[${req.id}]`, err.message);
     return sendError(res, req, STATUS[err.error], err);
   }
   // Некоректний JSON у тілі запиту (помилка express.json)
