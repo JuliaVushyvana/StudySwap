@@ -121,7 +121,7 @@
     }
     dropSession();
     log('Вихід з акаунта', 'ok');
-    if (page !== 'home') location.href = 'index.html';
+    if (page !== 'home' && page !== 'search') location.href = 'index.html';
     else loadMaterials();
   });
 
@@ -213,10 +213,41 @@
     });
   }
 
+  // 1 матеріал, 2 матеріали, 5 матеріалів
+  function plural(n, [one, few, many]) {
+    const mod10 = n % 10;
+    const mod100 = n % 100;
+    if (mod10 === 1 && mod100 !== 11) return one;
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+    return many;
+  }
+  const MATERIAL_FORMS = ['матеріал', 'матеріали', 'матеріалів'];
+
+  // ---------- Головна: перший екран (стос карток) ----------
+  const formatOf = (m) => (m.file && m.file.format ? m.file.format : m.file.fileName.split('.').pop()).toLowerCase();
+
+  function renderHeroCards(items) {
+    $('heroCards').querySelectorAll('.hero-card').forEach((c) => c.remove());
+    items.slice(0, 3).forEach((m, i) => {
+      const card = Object.assign(document.createElement('a'), { className: `hero-card hero-card-${i + 1}`, href: `material.html?id=${m.id}` });
+      card.append(
+        Object.assign(document.createElement('span'), { className: 'hero-card-format', textContent: formatOf(m).toUpperCase() }),
+        Object.assign(document.createElement('strong'), { className: 'hero-card-title', textContent: m.title }),
+        Object.assign(document.createElement('span'), { className: 'hero-card-meta', textContent: `${m.subject} · ${m.course} курс` }),
+        Object.assign(document.createElement('span'), { className: 'hero-card-author', textContent: m.authorNickname || '' }),
+      );
+      $('heroCards').appendChild(card);
+    });
+  }
+
+  // Запит пошуку з адреси: search.html?q=...
+  const searchQuery = () => (new URLSearchParams(location.search).get('q') || '').trim();
+
+  // Головна — нові матеріали без фільтра; сторінка пошуку — результати за запитом
   async function loadMaterials() {
     if (!$('list')) return;
     $('listError').textContent = '';
-    const q = $('searchInput').value.trim();
+    const q = page === 'search' ? searchQuery() : '';
     const url = `${API_URL}/materials${q ? `?q=${encodeURIComponent(q)}` : ''}`;
     try {
       const res = await callApi(`GET /materials${q ? `?q=${q}` : ''}`, url);
@@ -224,22 +255,32 @@
         $('listError').textContent = `Не вдалося завантажити: ${describeError(await readError(res))}`;
         return;
       }
-      const { items } = await res.json();
+      const { items, total } = await res.json();
       renderRows(items);
+      if (page === 'search') renderSearchSummary(q, items.length, total);
+      if (page === 'home') renderHeroCards(items);
     } catch (e) {
       $('listError').textContent = `Не вдалося завантажити: ${e.message} (requestId: ${e.requestId})`;
     }
   }
 
-  if (page === 'home') {
-    $('searchForm').addEventListener('submit', (event) => {
-      event.preventDefault();
-      const q = $('searchInput').value.trim();
-      history.replaceState(null, '', q ? `?q=${encodeURIComponent(q)}` : location.pathname);
-      loadMaterials();
-    });
-    const q = new URLSearchParams(location.search).get('q');
-    if (q) $('searchInput').value = q;
+  // ---------- Сторінка пошуку ----------
+
+  function renderSearchSummary(q, shown, total) {
+    const empty = total === 0 && Boolean(q);
+    $('searchTitle').textContent = q ? `Результати пошуку «${q}»` : 'Усі матеріали';
+    $('resultsTable').hidden = empty;
+    $('noResults').hidden = !empty;
+    $('noResultsQuery').textContent = q;
+    let summary = empty ? '' : `Знайдено ${total} ${plural(total, MATERIAL_FORMS)}`;
+    if (shown < total) summary += ` · показано перші ${shown}`;
+    $('searchSummary').textContent = summary;
+  }
+
+  if (page === 'search') {
+    const q = searchQuery();
+    $('searchInput').value = q;
+    document.title = q ? `«${q}» · Пошук · StudySwap` : 'Усі матеріали · StudySwap';
   }
 
   // ---------- Сторінка «Додати матеріал» ----------
@@ -831,6 +872,20 @@
     $('editCancel').addEventListener('click', () => $('editDialog').close());
   }
 
+  // ---------- Порожній пошук: не відправляємо, просимо вписати текст ----------
+  document.querySelectorAll('form[action="search.html"]').forEach((form) => {
+    const input = form.querySelector('input[name="q"]');
+    input.addEventListener('input', () => input.setCustomValidity(''));
+    form.addEventListener('submit', (event) => {
+      if (input.value.trim()) return;
+      event.preventDefault();
+      input.value = '';
+      input.setCustomValidity('Впишіть текст');
+      input.reportValidity();
+      input.focus();
+    });
+  });
+
   // ---------- Старт ----------
   $('retryNowBtn').addEventListener('click', () => degraded.retryNow());
   renderSession();
@@ -840,5 +895,5 @@
     $('previewClose').addEventListener('click', closePreview);
   }
   if (page === 'profile') loadProfilePage();
-  checkHealth().then((ok) => { if (ok && page === 'home') loadMaterials(); });
+  checkHealth().then((ok) => { if (ok && (page === 'home' || page === 'search')) loadMaterials(); });
 }());
