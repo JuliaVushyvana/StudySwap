@@ -1,0 +1,123 @@
+# Алерти Grafana для studyswap-api (Практика 8, рівні 95–100): contact point, notification policy, 2 правила.
+# Формат — file provisioning Grafana 10 (стенд observability-demo, grafana/grafana:10.4.5).
+#
+# Як підключити:
+#   скопіювати цей файл у ../observability-demo/grafana/provisioning/alerting/alerts.yaml
+#   docker compose restart grafana
+# Правила з'являться в Alerting → Alert rules, папка «StudySwap» (з позначкою Provisioned).
+#
+# Webhook отримує observability/alert-webhook.js (порт 9999 на хості):  node observability/alert-webhook.js
+# Grafana працює в Docker, тому хост для неї — host.docker.internal.
+#
+# Чернетки на demo-app (до того, як пішли дані від studyswap-api) — ті самі правила з метриками стенду:
+#   error rate: 100 * (sum(rate(http_requests_error_total{service="demo-app"}[5m])) or vector(0)) / sum(rate(http_requests_total{service="demo-app"}[5m]))
+#   p95, мс:    histogram_quantile(0.95, sum by (le) (rate(http_request_duration_ms_bucket{service="demo-app"}[5m])))
+
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: studyswap-webhook
+    receivers:
+      - uid: studyswap-webhook
+        type: webhook
+        disableResolveMessage: false
+        settings:
+          url: http://host.docker.internal:9999/alert
+          httpMethod: POST
+
+# Увага: provisioning політики замінює все дерево політик організації (на навчальному стенді інших немає)
+policies:
+  - orgId: 1
+    receiver: studyswap-webhook
+    group_by: ['grafana_folder', 'alertname']
+    group_wait: 30s
+    group_interval: 1m
+    repeat_interval: 1h
+
+groups:
+  - orgId: 1
+    name: studyswap-red
+    folder: StudySwap
+    interval: 1m          # як часто Grafana обчислює правила
+    rules:
+      # ---------- 1. Error rate > 5 % упродовж 5 хв ----------
+      - uid: studyswap-error-rate
+        title: 'studyswap-api: error rate > 5%'
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: Prometheus
+            model:
+              refId: A
+              instant: true
+              range: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              # частка відповідей 5xx за 5 хв, %; `or vector(0)` — 0 %, коли 5xx немає зовсім
+              expr: >-
+                100 * (sum(rate(http_server_request_duration_seconds_count{service_name="studyswap-api", http_response_status_code=~"5.."}[5m])) or vector(0))
+                / sum(rate(http_server_request_duration_seconds_count{service_name="studyswap-api"}[5m]))
+          - refId: B
+            datasourceUid: __expr__
+            model: { refId: B, type: reduce, expression: A, reducer: last, settings: { mode: dropNN } }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator: { type: gt, params: [5] }
+        for: 5m              # умова має триматися 5 хв: Normal → Pending → Firing
+        noDataState: OK      # немає трафіку — не тривога
+        execErrState: Error
+        labels:
+          severity: critical
+          service: studyswap-api
+          signal: errors
+        annotations:
+          summary: 'studyswap-api: {{ printf "%.1f" $values.B.Value }} % відповідей 5xx за 5 хв (поріг 5 %)'
+          description: 'Перевірити Loki {service_name="studyswap-api", level="ERROR"} і трейси зі status=error у Tempo. Runbook: docs/practice8/report.md, «Runbook: error rate > 5 %».'
+          runbook_url: https://github.com/JuliaVushyvana/StudySwap/blob/main/docs/practice8/report.md
+
+      # ---------- 2. p95 > 500 мс упродовж 5 хв ----------
+      - uid: studyswap-p95
+        title: 'studyswap-api: p95 > 500 ms'
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: Prometheus
+            model:
+              refId: A
+              instant: true
+              range: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              # метрика OTel у секундах → множимо на 1000, щоб поріг був у мс
+              expr: >-
+                1000 * histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{service_name="studyswap-api"}[5m])))
+          - refId: B
+            datasourceUid: __expr__
+            model: { refId: B, type: reduce, expression: A, reducer: last, settings: { mode: dropNN } }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator: { type: gt, params: [500] }
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+          service: studyswap-api
+          signal: latency
+        annotations:
+          summary: 'studyswap-api: p95 = {{ printf "%.0f" $values.B.Value }} мс за 5 хв (поріг 500 мс)'
+          description: 'Панель «p95 за роутами» на дашборді My Demo RED покаже повільний роут; далі Tempo: {resource.service.name="studyswap-api" && duration > 500ms}. Runbook: docs/practice8/report.md, «Runbook: p95 > 500 мс».'
+          runbook_url: https://github.com/JuliaVushyvana/StudySwap/blob/main/docs/practice8/report.md
