@@ -18,7 +18,11 @@ npm start   # API на http://localhost:3000, перевірка: GET /health �
 npm test    # юніт-тести рівня service/
 ```
 
-Вхід (`POST /auth/login`) ще не реалізовано, тому для запитів, що змінюють дані, поки використовуються тестові токени в заголовку `Authorization: Bearer <токен>`: `dev-token-anna`, `dev-token-ivan` (користувачі) і `dev-token-admin` (адмін).
+Реєстрація й вхід: `POST /auth/register`, `POST /auth/login` (логін або пошта + пароль) → JWT, `POST /auth/logout`. Запити, що змінюють дані, передають токен у заголовку `Authorization: Bearer <JWT>`. Тестові акаунти з `seed.js`: `anna_k`, `julia_v` (користувачі) і `admin1` (адмін), пароль у всіх — `studyswap123`.
+
+Змінні середовища для входу: `JWT_SECRET` (ключ підпису; значення за замовчуванням лише для локальної розробки), `TOKEN_TTL_SECONDS` (строк дії токена, 3600), `BCRYPT_ROUNDS` (вартість хешування, 10).
+
+> Якщо `backend/data.db` створено до появи входу, тестові акаунти мають заглушки замість хешів паролів: видаліть `data.db`, і seed створить їх заново.
 
 ## Docker
 
@@ -83,7 +87,7 @@ docker run --name studyswap-api --rm -d -p 3000:3000 -e CHAOS=1 studyswap-api:1.
 
 Фронтенд у браузері звертається до API за `http://localhost:3000`, CORS на API увімкнено.
 База — SQLite: файл `/app/data/studyswap.db` у томі `api-data`, тому матеріали не зникають після `docker compose down`.
-SQLite — це файл, а не окремий сервер, тож замість Postgres сервіс `db` — веб-переглядач того самого файлу бази (лише читання, записує тільки API). На http://localhost:8081 видно таблиці `materials`, `users`, `stored_files`, `idempotency_keys`; `db` стартує, коли API вже healthy і створив таблиці.
+SQLite — це файл, а не окремий сервер, тож замість Postgres сервіс `db` — веб-переглядач того самого файлу бази (лише читання, записує тільки API). На http://localhost:8081 видно таблиці `materials`, `users`, `stored_files`, `idempotency_keys`, `revoked_tokens`; `db` стартує, коли API вже healthy і створив таблиці.
 
 Команди виконуються з кореня репозиторію:
 
@@ -104,3 +108,5 @@ docker compose down
 # те саме, але разом із даними (наступний запуск — знову тестові дані з seed.js)
 docker compose down -v
 ```
+
+Ключ підпису JWT для API задається змінною `JWT_SECRET` (наприклад, у файлі `.env` поруч із `docker-compose.yml`); без неї використовується тестовий ключ. Якщо том `api-data` створено до появи входу, тестові акаунти в ньому не мають справжніх хешів паролів — один раз виконайте `docker compose down -v`.

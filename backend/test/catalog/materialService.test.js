@@ -11,7 +11,7 @@ const { User, Role } = require('../../domain/access/User');
 const NOW = new Date('2026-11-20T10:15:00Z');
 const born = new Date('2005-03-14');
 const anna = Object.assign(new User({ nickname: 'Anna', login: 'anna_k', email: 'anna@uni.ua', passwordHash: 'x', birthDate: born }), { id: 1 });
-const ivan = Object.assign(new User({ nickname: 'Ivan', login: 'ivan_p', email: 'ivan@uni.ua', passwordHash: 'x', birthDate: born }), { id: 2 });
+const julia = Object.assign(new User({ nickname: 'Julia', login: 'julia_v', email: 'julia@uni.ua', passwordHash: 'x', birthDate: born }), { id: 2 });
 const admin = Object.assign(new User({ nickname: 'Admin', login: 'admin1', email: 'admin@uni.ua', passwordHash: 'x', birthDate: born, role: Role.ADMIN }), { id: 3 });
 
 function fakeMaterialRepository() {
@@ -118,7 +118,7 @@ test('update: чужий матеріал → ForbiddenError, порожнє т�
   const service = setup();
   const { id } = service.create(anna, validBody(), key());
 
-  assert.throws(() => service.update(ivan, id, { title: 'Моє' }), ForbiddenError);
+  assert.throws(() => service.update(julia, id, { title: 'Моє' }), ForbiddenError);
   assert.throws(() => service.update(anna, id, {}), { code: 'EMPTY_UPDATE' });
   assert.throws(() => service.update(anna, id, { fileId: 'f-8c1e2b' }), { code: 'UNKNOWN_FIELD' });
 });
@@ -136,7 +136,7 @@ test('remove: адмін видаляє чужий матеріал, після 
 test('list: пошук, фільтр і некоректний параметр', () => {
   const service = setup();
   service.create(anna, validBody(), key());
-  service.create(ivan, { ...validBody(), title: 'Принципи ООП', subject: 'ООП', course: 1 }, key());
+  service.create(julia, { ...validBody(), title: 'Принципи ООП', subject: 'ООП', course: 1 }, key());
 
   assert.deepEqual(service.list({ q: 'нормалізація', course: '2' }).items.map((m) => m.title), ['Нормалізація БД']);
   assert.equal(service.list({ sort: 'title' }).total, 2);

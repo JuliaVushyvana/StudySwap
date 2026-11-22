@@ -4,7 +4,11 @@ const express = require('express');
 const cors = require('cors');
 
 const { createUserRepository } = require('./service/access/userRepository');
+const { createRevokedTokenRepository } = require('./service/access/revokedTokenRepository');
 const { createAccessService } = require('./service/access/accessService');
+const { createIdentityService } = require('./service/access/identityService');
+const { createTokenService } = require('./service/access/tokenService');
+const { createPasswordHasher } = require('./service/access/passwordHasher');
 const { createFileRepository } = require('./service/storage/fileRepository');
 const { createStorageService } = require('./service/storage/storageService');
 const { createMaterialRepository } = require('./service/catalog/materialRepository');
@@ -19,6 +23,7 @@ const { errorHandler, notFound } = require('./api/middleware/errorHandler');
 const { createRateLimiter } = require('./api/middleware/rateLimit');
 const { requestTimeout } = require('./api/middleware/timeout');
 const { createFaultInjection } = require('./api/middleware/faultInjection');
+const { createAuthRouter } = require('./api/access/authRouter');
 const { createMaterialsRouter } = require('./api/catalog/materialsRouter');
 const { createHealthRouter } = require('./api/health/healthRouter');
 const { seed } = require('./seed');
@@ -26,12 +31,18 @@ const { config: defaultConfig } = require('./config');
 
 function createApp(db, config = defaultConfig) {
   const userRepository = createUserRepository(db);
+  const revokedTokenRepository = createRevokedTokenRepository(db);
   const fileRepository = createFileRepository(db);
   const materialRepository = createMaterialRepository(db);
   const idempotencyRepository = createIdempotencyRepository(db);
   seed({ userRepository, fileRepository, materialRepository });
 
-  const accessService = createAccessService({ userRepository });
+  const tokenService = createTokenService({
+    secret: config.jwtSecret, ttlSeconds: config.tokenTtlSeconds, revokedTokenRepository,
+  });
+  const passwordHasher = createPasswordHasher({ rounds: config.bcryptRounds });
+  const accessService = createAccessService({ userRepository, tokenService });
+  const identityService = createIdentityService({ userRepository, passwordHasher, tokenService });
   const storageService = createStorageService({ fileRepository });
   const idempotencyService = createIdempotencyService({ idempotencyRepository });
   const materialService = createMaterialService({ materialRepository, storageService, idempotencyService });
@@ -52,6 +63,7 @@ function createApp(db, config = defaultConfig) {
   app.use(express.json());
   app.use(authenticate(accessService));
 
+  app.use('/auth', createAuthRouter({ identityService }));
   app.use('/materials', createMaterialsRouter({ materialService }));
 
   app.use(notFound);
