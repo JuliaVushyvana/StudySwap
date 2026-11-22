@@ -138,3 +138,48 @@ docker compose down -v
 ```
 
 Ключ підпису JWT для API задається змінною `JWT_SECRET` (наприклад, у файлі `.env` поруч із `docker-compose.yml`); без неї використовується тестовий ключ. Якщо том `api-data` створено до появи входу, тестові акаунти в ньому не мають справжніх хешів паролів — один раз виконайте `docker compose down -v`.
+
+## Delivery
+
+Файл: [.github/workflows/cd.yml](.github/workflows/cd.yml). Запускається на push у `main`, на тег `v*` і вручну (**Actions → CD → Run workflow**).
+
+Конвеєр: CI (`ci-reusable.yml` для `backend` і `frontend`) → збірка й публікація образів `api` і `web` (matrix) → Trivy-скан → Job Summary → чернетка релізу (лише для тегу `v*`).
+
+| Сервіс | Образ | Пакет |
+|---|---|---|
+| `api` | `ghcr.io/juliavushyvana/studyswap-api` | [GHCR](https://github.com/JuliaVushyvana/StudySwap/pkgs/container/studyswap-api) |
+| `web` | `ghcr.io/juliavushyvana/studyswap-web` | [GHCR](https://github.com/JuliaVushyvana/StudySwap/pkgs/container/studyswap-web) |
+
+- Запуски CD: https://github.com/JuliaVushyvana/StudySwap/actions/workflows/cd.yml
+- Релізи: https://github.com/JuliaVushyvana/StudySwap/releases
+
+Теги образів:
+
+| Подія | Теги |
+|---|---|
+| тег `v1.0.0` | `v1.0.0`, `v1.0`, `sha-<commit>` |
+| push у `main` | `latest`, `sha-<commit>` |
+| ручний запуск | `sha-<commit>` |
+
+Запуск опублікованих образів без збірки:
+
+```bash
+docker pull ghcr.io/juliavushyvana/studyswap-api:v1.0.0
+docker pull ghcr.io/juliavushyvana/studyswap-web:v1.0.0
+docker run --rm -d -p 3000:3000 ghcr.io/juliavushyvana/studyswap-api:v1.0.0
+docker run --rm -d -p 8080:80 ghcr.io/juliavushyvana/studyswap-web:v1.0.0
+```
+
+Новий реліз: `git tag v1.0.1 && git push origin v1.0.1` → CD публікує образи й створює чернетку релізу з автоматичними реліз-нотами; опублікувати її — **Releases → Edit → Publish release**.
+
+### Style points
+
+- [x] **Семантичні теги** — `docker/metadata-action`: `vX.Y.Z`, `vX.Y` з git-тегу, `sha-<commit>`, `latest` на `main`.
+- [x] **Trivy** — скан кожного образу (`HIGH`, `CRITICAL`), `exit-code: 0`: звіт у Job Summary, збірка не падає.
+- [x] **Job Summary** — теги, digest і посилання на пакет для кожного образу; coverage бекенду з артефакту `coverage-backend` (CI).
+- [x] **Реліз-ноти** — `softprops/action-gh-release` на тег `v*`: `draft: true`, `generate_release_notes: true`.
+- [x] **Permissions і concurrency** — `contents: read` для всього workflow, `packages: write` лише в job-і публікації; `concurrency` з `cancel-in-progress: true`; `timeout-minutes` у кожному job-і.
+- [x] **Reusable workflow** — CD викликає той самий `ci-reusable.yml`, що й CI.
+- [x] **Dependabot** — `npm` (backend, frontend) і `github-actions` (`.github/dependabot.yml`).
+- [x] Кеш шарів Docker `type=gha`.
+- [x] Environment `staging`: ручне підтвердження публікації (Settings → Environments → staging → Required reviewers).
