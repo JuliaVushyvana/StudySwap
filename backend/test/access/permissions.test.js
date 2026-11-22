@@ -30,6 +30,7 @@ test('гість: каталог, сторінка матеріалу й пер�
   assert.equal(can(null, P.FILE_READ), false);
   assert.equal(can(null, P.COMMENT_CREATE), false);
   assert.equal(can(null, P.NOTIFICATION_READ), false);
+  assert.equal(can(null, P.REPORT_CREATE), false);
   assert.equal(can(null, P.MATERIAL_CREATE), false);
   assert.equal(canManageMaterial(null, annasMaterial, 'delete'), false);
 });
@@ -39,6 +40,8 @@ test('користувач: відкриває й додає, змінює/ви�
   assert.equal(can(julia, P.FILE_READ), true);
   assert.equal(can(julia, P.COMMENT_CREATE), true);
   assert.equal(can(julia, P.NOTIFICATION_READ), true);
+  assert.equal(can(julia, P.REPORT_CREATE), true);
+  assert.equal(can(julia, P.REPORT_REVIEW), false);
   assert.equal(can(julia, P.MATERIAL_CREATE), true);
   assert.equal(canManageMaterial(anna, annasMaterial, 'update'), true);
   assert.equal(canManageMaterial(anna, annasMaterial, 'delete'), true);

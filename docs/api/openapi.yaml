@@ -6,7 +6,7 @@ info:
     Контракт API платформи StudySwap для обміну навчальними матеріалами.
     Базовий CRUD для ресурсу «Матеріал» (контекст «Каталог матеріалів»)
     і реєстрація, вхід та вихід (контекст «Користувачі та доступ»).
-    Коментарі під матеріалами (контекст «Обговорення») і сповіщення (контекст «Сповіщення»).
+    Коментарі під матеріалами (контекст «Обговорення»), сповіщення (контекст «Сповіщення») і скарги (контекст «Модерація»).
 
     Захищені запити передають токен із `POST /auth/login` у заголовку `Authorization: Bearer <JWT>`.
     Без дійсного токена (відсутній, підроблений, прострочений або відкликаний після `POST /auth/logout`)
@@ -17,7 +17,7 @@ info:
     Наскрізні правила (docs/adr/0004-error-handling-and-resilience.md):
     - `X-Request-Id` — клієнт може передати свій id запиту (до 128 символів), інакше сервер генерує UUID.
       Сервер завжди повертає його в заголовку відповіді й у полі `requestId` помилки.
-    - `POST /materials` і `POST /materials/{id}/comments` вимагають `Idempotency-Key`: повтор із тим самим ключем не створює дубліката.
+    - `POST /materials`, `POST /materials/{id}/comments` і `POST /reports` вимагають `Idempotency-Key`: повтор із тим самим ключем не створює дубліката.
     - `429` і `503` містять заголовок `Retry-After` (секунди), після якого запит можна повторити.
       Безпечно повторювати `GET`, `PATCH`, `DELETE` і `POST` з тим самим `Idempotency-Key`.
     - Коли БД недоступна, `GET /materials` працює в degraded mode: віддає останню збережену копію каталогу з `degraded: true`.
@@ -34,6 +34,8 @@ tags:
     description: Коментарі під матеріалами
   - name: Notifications
     description: Сповіщення користувача (новий коментар, результат розгляду скарги)
+  - name: Reports
+    description: Скарги на матеріали та їх розгляд адміном
   - name: Health
     description: Службові ендпоїнти
 
@@ -530,6 +532,144 @@ paths:
           description: Позначено (тіла відповіді немає)
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /reports:
+    post:
+      tags: [Reports]
+      summary: Поскаржитися на матеріал
+      description: |
+        Подати скаргу може зареєстрований користувач (business_doc №14). Назва матеріалу й автор
+        запам'ятовуються в скарзі, щоб вона лишалась зрозумілою й після видалення матеріалу.
+      operationId: createReport
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportCreateRequest'
+      responses:
+        '201':
+          description: Скаргу подано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+    get:
+      tags: [Reports]
+      summary: Скарги (адмін)
+      description: Переглядати скарги можуть лише адмін і суперадмін (business_doc №15). Спочатку нові, по 20 на сторінку.
+      operationId: listReports
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Лише скарги з цим статусом; без параметра — усі
+          schema:
+            $ref: '#/components/schemas/ReportStatus'
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+      responses:
+        '200':
+          description: Сторінка скарг
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /reports/{id}/decision:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Ідентифікатор скарги
+        schema:
+          type: integer
+          minimum: 1
+        example: 4
+    post:
+      tags: [Reports]
+      summary: Розглянути скаргу (адмін)
+      description: |
+        Задовольнити (`resolved`, за потреби з видаленням матеріалу) або відхилити (`rejected`) скаргу.
+        Розглянути можна один раз: повтор → 409. Автор скарги отримує сповіщення `report_result`.
+      operationId: decideReport
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportDecisionRequest'
+      responses:
+        '200':
+          description: Скаргу розглянуто
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Скаргу не знайдено (REPORT_NOT_FOUND)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Скаргу вже розглянуто (REPORT_ALREADY_REVIEWED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -1168,6 +1308,116 @@ components:
           type: integer
           description: Скільки всього непрочитаних (не лише серед items)
 
+    ReportStatus:
+      type: string
+      enum: [open, resolved, rejected]
+      description: open — чекає розгляду; resolved — задоволено; rejected — відхилено
+
+    ReportCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [materialId, text]
+      properties:
+        materialId:
+          type: integer
+          minimum: 1
+        text:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Що не так із матеріалом; пробіли на початку й у кінці обрізаються
+      example:
+        materialId: 100
+        text: Це чужа курсова, видана за власний конспект
+
+    ReportDecisionRequest:
+      type: object
+      additionalProperties: false
+      required: [result]
+      properties:
+        result:
+          type: string
+          enum: [resolved, rejected]
+        deleteMaterial:
+          type: boolean
+          default: false
+          description: Лише з result = resolved — видалити матеріал
+        comment:
+          type: string
+          maxLength: 500
+          description: Пояснення рішення; потрапляє в сповіщення автору скарги
+      example:
+        result: resolved
+        deleteMaterial: true
+        comment: Матеріал порушує правила платформи
+
+    ReportResponse:
+      type: object
+      required: [id, materialId, materialTitle, materialAuthorId, materialAuthorNickname, reporterId, reporterNickname, text, status, decision, createdAt]
+      properties:
+        id:
+          type: integer
+        materialId:
+          type: integer
+        materialTitle:
+          type: string
+          description: Назва матеріалу на момент скарги
+        materialAuthorId:
+          type: integer
+        materialAuthorNickname:
+          type: string
+        reporterId:
+          type: integer
+        reporterNickname:
+          type: string
+        text:
+          type: string
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        decision:
+          type: object
+          nullable: true
+          description: Рішення адміна; null, поки скаргу не розглянуто
+          required: [deleteMaterial, comment, reviewerId, reviewedAt]
+          properties:
+            deleteMaterial:
+              type: boolean
+            comment:
+              type: string
+            reviewerId:
+              type: integer
+            reviewedAt:
+              type: string
+              format: date-time
+        createdAt:
+          type: string
+          format: date-time
+      example:
+        id: 4
+        materialId: 100
+        materialTitle: Нормалізація БД
+        materialAuthorId: 1
+        materialAuthorNickname: Anna
+        reporterId: 2
+        reporterNickname: Julia
+        text: Це чужа курсова, видана за власний конспект
+        status: open
+        decision: null
+        createdAt: '2026-11-23T10:00:00Z'
+
+    ReportListResponse:
+      type: object
+      required: [items, total, page]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportResponse'
+        total:
+          type: integer
+        page:
+          type: integer
+
     RegisterRequest:
       type: object
       additionalProperties: false
@@ -1293,10 +1543,12 @@ components:
           EMAIL_REQUIRED, INVALID_EMAIL, PASSWORD_REQUIRED, PASSWORD_TOO_SHORT, PASSWORD_TOO_LONG,
           BIRTH_DATE_REQUIRED, INVALID_BIRTH_DATE, UNKNOWN_FIELD, INVALID_BODY;
         - ValidationError (400), коментарі: TEXT_REQUIRED, TEXT_TOO_LONG, UNKNOWN_FIELD, INVALID_BODY;
+        - ValidationError (400), скарги: MATERIAL_REQUIRED, TEXT_REQUIRED, TEXT_TOO_LONG, INVALID_RESULT,
+          INVALID_DELETE_MATERIAL, COMMENT_TOO_LONG, INVALID_STATUS, INVALID_PAGE, UNKNOWN_FIELD, INVALID_BODY;
         - Unauthorized (401): UNAUTHORIZED, INVALID_CREDENTIALS;
         - Forbidden (403): FORBIDDEN;
-        - NotFound (404): MATERIAL_NOT_FOUND, COMMENT_NOT_FOUND, NOTIFICATION_NOT_FOUND, ROUTE_NOT_FOUND;
-        - Conflict (409): IDEMPOTENCY_KEY_REUSED, LOGIN_TAKEN, NICKNAME_TAKEN, EMAIL_TAKEN;
+        - NotFound (404): MATERIAL_NOT_FOUND, COMMENT_NOT_FOUND, NOTIFICATION_NOT_FOUND, REPORT_NOT_FOUND, ROUTE_NOT_FOUND;
+        - Conflict (409): IDEMPOTENCY_KEY_REUSED, LOGIN_TAKEN, NICKNAME_TAKEN, EMAIL_TAKEN, REPORT_ALREADY_REVIEWED;
         - TooManyRequests (429): RATE_LIMITED;
         - InternalError (500): code = null;
         - ServiceUnavailable (503): REQUEST_TIMEOUT, CATALOG_UNAVAILABLE, SERVICE_UNAVAILABLE.
