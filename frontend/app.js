@@ -104,6 +104,7 @@
       $('accountRole').textContent = Access.label(user);
       $('accountRole').className = `role-badge role-${Access.roleOf(user)}`;
     }
+    renderBell();
   }
 
   function dropSession() {
@@ -124,6 +125,117 @@
     if (page !== 'home' && page !== 'search') location.href = 'index.html';
     else loadMaterials();
   });
+
+  // ---------- Сповіщення: дзвіночок у шапці (business_doc №16) ----------
+  // Лічильник оновлюється при відкритті сторінки й раз на хвилину; список — при натисканні на дзвіночок.
+  // Прочитаним сповіщення стає після кліку по ньому або «Позначити всі».
+  const NOTIF_POLL_MS = 60_000;
+  let notifTimer = null;
+  const hasBell = () => Boolean($('bellBtn')); // на auth.html дзвіночка немає
+
+  const relativeTime = (() => {
+    const rtf = new Intl.RelativeTimeFormat('uk', { numeric: 'auto' });
+    const steps = [[60, 'second'], [60, 'minute'], [24, 'hour'], [7, 'day']];
+    return (iso) => {
+      let value = (new Date(iso) - Date.now()) / 1000;
+      for (const [size, unit] of steps) {
+        if (Math.abs(value) < size) return unit === 'second' ? 'щойно' : rtf.format(Math.round(value), unit);
+        value /= size;
+      }
+      return formatDate(iso);
+    };
+  })();
+
+  function showUnread(count) {
+    $('bellCount').hidden = count === 0;
+    $('bellCount').textContent = count > 99 ? '99+' : String(count);
+    $('bellBtn').setAttribute('aria-label', count ? `Сповіщення: непрочитаних ${count}` : 'Сповіщення');
+    $('notifReadAll').disabled = count === 0;
+  }
+
+  function renderNotification(n) {
+    const li = document.createElement('li');
+    const btn = Object.assign(document.createElement('button'), { type: 'button', className: `notif-item${n.read ? '' : ' unread'}` });
+    const dot = Object.assign(document.createElement('span'), { className: 'notif-dot' });
+    dot.setAttribute('aria-hidden', 'true');
+    const text = Object.assign(document.createElement('span'), { textContent: n.message });
+    text.append(Object.assign(document.createElement('span'), { className: 'notif-time', textContent: relativeTime(n.createdAt) }));
+    btn.append(dot, text);
+    btn.onclick = () => openNotification(n);
+    li.append(btn);
+    return li;
+  }
+
+  async function refreshNotifications({ renderList = false } = {}) {
+    if (!hasBell() || !Access.can(currentUser(), P.NOTIFICATION_READ)) return;
+    try {
+      const res = await callApi('GET /notifications', `${API_URL}/notifications`, { headers: authHeaders() });
+      if (!res.ok) {
+        if (renderList) $('notifError').textContent = res.status === 401 ? '' : `Не вдалося завантажити: ${describeError(await readError(res))}`;
+        return;
+      }
+      const { items, unread } = await res.json();
+      showUnread(unread);
+      if (renderList) {
+        $('notifError').textContent = '';
+        $('notifList').replaceChildren(...items.map(renderNotification));
+        $('notifEmpty').hidden = items.length > 0;
+      }
+    } catch (e) {
+      if (renderList) $('notifError').textContent = `Не вдалося завантажити: ${e.message}`;
+    }
+  }
+
+  // Клік по сповіщенню: позначити прочитаним і перейти до матеріалу (link — шлях API /materials/:id)
+  async function openNotification(n) {
+    if (!n.read) {
+      try {
+        await callApi(`POST /notifications/${n.id}/read`, `${API_URL}/notifications/${n.id}/read`, { method: 'POST', headers: authHeaders() });
+      } catch (e) {
+        log(`Сповіщення ${n.id} не позначено прочитаним: ${e.message}`, 'warn');
+      }
+    }
+    const materialId = /^\/materials\/(\d+)$/.exec(n.link || '');
+    if (materialId) location.href = `material.html?id=${materialId[1]}#commentsCard`;
+    else refreshNotifications({ renderList: true });
+  }
+
+  function setPanelOpen(open) {
+    $('notifPanel').hidden = !open;
+    $('bellBtn').setAttribute('aria-expanded', String(open));
+    if (open) refreshNotifications({ renderList: true });
+  }
+
+  function renderBell() {
+    if (!hasBell()) return;
+    const allowed = Access.can(currentUser(), P.NOTIFICATION_READ);
+    $('bellBtn').hidden = !allowed;
+    clearInterval(notifTimer);
+    if (!allowed) { setPanelOpen(false); showUnread(0); return; }
+    refreshNotifications();
+    notifTimer = setInterval(() => { if (!document.hidden) refreshNotifications(); }, NOTIF_POLL_MS);
+  }
+
+  if (hasBell()) {
+    $('bellBtn').addEventListener('click', () => setPanelOpen($('notifPanel').hidden));
+    $('notifReadAll').addEventListener('click', async () => {
+      $('notifReadAll').disabled = true;
+      try {
+        const res = await callApi('POST /notifications/read-all', `${API_URL}/notifications/read-all`, { method: 'POST', headers: authHeaders() });
+        if (res.status !== 204 && res.status !== 401) $('notifError').textContent = `Не вдалося: ${describeError(await readError(res))}`;
+      } catch (e) {
+        $('notifError').textContent = `Не вдалося: ${e.message}`;
+      }
+      refreshNotifications({ renderList: true });
+    });
+    // Закривається кліком поза вікном або Esc
+    document.addEventListener('click', (e) => {
+      if (!$('notifPanel').hidden && !e.target.closest('.bell-wrap')) setPanelOpen(false);
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !$('notifPanel').hidden) { setPanelOpen(false); $('bellBtn').focus(); }
+    });
+  }
 
   // ---------- Запити до API ----------
   async function callApi(label, url, opts = {}) {
@@ -684,6 +796,8 @@
       const { items, total } = await res.json();
       $('commentsList').replaceChildren(...items.map((c) => renderComment(c, material)));
       showCommentCount(total);
+      // Перехід зі сповіщення: картка була прихована, тож браузер сам до неї не прокрутив
+      if (location.hash === '#commentsCard') $('commentsCard').scrollIntoView({ behavior: 'smooth' });
     } catch (e) {
       $('commentsError').textContent = `Коментарі не завантажились: ${e.message}`;
     }

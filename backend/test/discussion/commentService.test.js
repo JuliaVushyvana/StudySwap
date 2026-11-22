@@ -39,7 +39,7 @@ function fakeIdempotencyRepository() {
 // Каталог з опублікованими матеріалами 100 (Anna) і 200 (Julia); решта id → 404, як у справжньому materialService
 const fakeMaterialService = {
   get: (user, rawId) => {
-    const material = { 100: { id: 100, authorId: anna.id }, 200: { id: 200, authorId: julia.id } }[String(rawId)];
+    const material = { 100: { id: 100, title: 'Нормалізація БД', authorId: anna.id }, 200: { id: 200, title: 'Принципи ООП', authorId: julia.id } }[String(rawId)];
     if (!material) throw new NotFoundError('MATERIAL_NOT_FOUND');
     return material;
   },
@@ -49,11 +49,21 @@ const fakeMaterialService = {
 let keyCounter = 0;
 const key = () => `comment-key-${++keyCounter}`;
 
-function setup({ userDirectory = null } = {}) {
+// Замість модуля notifications — записувач викликів notify()
+function fakeNotifier({ fail = false } = {}) {
+  const sent = [];
+  return {
+    sent,
+    Kind: { NEW_COMMENT: 'new_comment' },
+    notify: (n) => { if (fail) throw new Error('БД сповіщень недоступна'); sent.push(n); },
+  };
+}
+
+function setup({ userDirectory = null, notifier = null } = {}) {
   const idempotencyService = createIdempotencyService({ idempotencyRepository: fakeIdempotencyRepository(), now: () => NOW });
   return createCommentService({
     commentRepository: fakeCommentRepository(), materialService: fakeMaterialService,
-    idempotencyService, accessPolicy, userDirectory, now: () => NOW,
+    idempotencyService, accessPolicy, notifier, userDirectory, now: () => NOW, logger: { warn: () => {} },
   });
 }
 
@@ -153,5 +163,29 @@ test('remove: неіснуючий коментар, коментар з інш�
   assert.throws(() => service.remove(admin, '200', String(comment.id)), { code: 'COMMENT_NOT_FOUND' });
   assert.throws(() => service.remove(admin, '100', 'abc'), { code: 'COMMENT_NOT_FOUND' });
   assert.throws(() => service.remove(admin, '999', String(comment.id)), { code: 'MATERIAL_NOT_FOUND' });
+  assert.equal(service.list(null, '100').total, 1);
+});
+
+test('сповіщення: автор матеріалу отримує new_comment, але не на власний коментар і не на повтор запиту', () => {
+  const notifier = fakeNotifier();
+  const service = setup({ notifier });
+  const k = key();
+
+  service.create(julia, '100', { text: 'Дякую!' }, k);
+  service.create(julia, '100', { text: 'Дякую!' }, k); // повтор із тим самим ключем
+  service.create(anna, '100', { text: 'Рада допомогти' }, key()); // Anna — автор матеріалу
+
+  assert.deepEqual(notifier.sent, [{
+    recipientId: anna.id, kind: 'new_comment',
+    message: 'Новий коментар від Julia до «Нормалізація БД»', link: '/materials/100',
+  }]);
+});
+
+test('сповіщення: збій модуля notifications не ламає створення коментаря', () => {
+  const service = setup({ notifier: fakeNotifier({ fail: true }) });
+
+  const created = service.create(julia, '100', { text: 'Дякую!' }, key());
+
+  assert.equal(created.text, 'Дякую!');
   assert.equal(service.list(null, '100').total, 1);
 });
