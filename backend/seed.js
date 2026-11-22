@@ -6,11 +6,25 @@ const { StoredFile } = require('./domain/storage/StoredFile');
 const { Material, MaterialFile } = require('./domain/catalog/Material');
 
 const MB = 1024 * 1024;
-// Спільний пароль тестових акаунтів anna_k, julia_v, admin1 (див. README)
+// Спільний пароль тестових акаунтів anna_k, julia_v, admin1, superadmin (див. README)
 const SEED_PASSWORD = 'studyswap123';
 
-function seed({ userRepository, fileRepository, materialRepository }) {
-  if (userRepository.count() > 0) return;
+function seed(repos) {
+  if (repos.userRepository.count() === 0) seedDemo(repos);
+  ensureSuperAdmin(repos);
+}
+
+// Суперадмін (призначає адмінів). Окремим кроком: з'являється і в уже створеній базі data.db.
+function ensureSuperAdmin({ userRepository }) {
+  if (userRepository.findByRole(Role.SUPERADMIN)) return;
+  if (userRepository.findByLogin('superadmin')) return; // логін зайнятий кимось іншим — нічого не чіпаємо
+  userRepository.insert(new User({
+    nickname: 'Super Admin', login: 'superadmin', email: 'superadmin@uni.ua',
+    passwordHash: bcrypt.hashSync(SEED_PASSWORD, 10), birthDate: new Date('2000-01-01'), role: Role.SUPERADMIN,
+  }));
+}
+
+function seedDemo({ userRepository, fileRepository, materialRepository }) {
 
   const born = new Date('2005-03-14');
   const passwordHash = bcrypt.hashSync(SEED_PASSWORD, 10);

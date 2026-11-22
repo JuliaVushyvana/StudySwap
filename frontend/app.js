@@ -1,4 +1,7 @@
-// Логіка сторінки: health, список, створення матеріалу, degraded mode і журнал запитів.
+// Логіка сторінок StudySwap.
+// Спільне для всіх: шапка з акаунтом і роллю, /health, degraded mode, журнал запитів.
+// index.html — пошук і таблиця; add.html — додавання матеріалу; material.html — сторінка матеріалу.
+// Що дозволено кожній ролі (гість / користувач / адмін) — lib/permissions.js.
 
 (function () {
   'use strict';
@@ -10,17 +13,17 @@
   const { fetchWithResilience, readError } = window.StudyHttp;
   const { getOrReuseKey, forgetKey } = window.StudyIdem;
   const Session = window.StudySession;
+  const Access = window.StudyAccess;
+  const P = Access.Permission;
   const $ = (id) => document.getElementById(id);
+  const page = document.body.dataset.page;
 
-  // ---------- Журнал ----------
+  // ---------- Журнал запитів: лише в консоль браузера (F12), на сторінці не показується ----------
   function log(text, kind = '') {
-    const line = document.createElement('div');
-    if (kind) line.className = kind;
-    line.textContent = `${new Date().toLocaleTimeString()}  ${text}`;
-    $('log').prepend(line);
+    const method = kind === 'bad' ? 'warn' : 'debug';
+    console[method](`[StudySwap] ${text}`);
   }
 
-  // Колбек для fetchWithResilience: пише кожну спробу
   const attemptLogger = (label) => ({ attempt, status, error, waitMs, requestId }) => {
     const rid = requestId.slice(0, 8);
     const what = error || `HTTP ${status}`;
@@ -29,14 +32,18 @@
     log(`${label} спроба ${attempt + 1}: ${what} [rid ${rid}]${next}`, kind);
   };
 
-  // ---------- Degraded mode ----------
+  // ---------- /health і degraded mode ----------
+  // Стан сервера на сторінці не показуємо: /health потрібен лише для виходу з degraded mode
+  function setHealth(ok, text) {
+    log(text, ok ? 'ok' : 'bad');
+  }
+
   async function checkHealth() {
     try {
       const res = await fetchWithResilience(`${API_URL}/health`, {
         retry: { retries: 0, timeoutMs: HEALTH_TIMEOUT_MS },
         onAttempt: attemptLogger('GET /health'),
       });
-      // Очікуємо { "status": "ok" }; старий бекенд відповідав текстом "ok"
       const text = await res.text();
       let ok = res.ok && text.trim() === 'ok';
       try { ok = res.ok && JSON.parse(text).status === 'ok'; } catch (_) { /* не JSON */ }
@@ -48,11 +55,6 @@
     }
   }
 
-  function setHealth(ok, text) {
-    $('healthDot').className = `dot ${ok ? 'ok' : 'bad'}`;
-    $('healthText').textContent = text;
-  }
-
   let countdown = null;
   let wasDegraded = false;
   const degraded = window.StudyDegraded.createDegradedMode({
@@ -60,7 +62,7 @@
     cooldownMs: 10000,
     probe: checkHealth,
     onChange({ degraded: on, untilTs }) {
-      if (on === wasDegraded && !on) return; // просто змінився лічильник збоїв
+      if (on === wasDegraded && !on) return;
       document.querySelectorAll('[data-api]').forEach((b) => { b.disabled = on; });
       $('banner').classList.toggle('show', on);
       clearInterval(countdown);
@@ -83,12 +85,57 @@
     },
   });
 
-  // Будь-який запит до API проходить тут: рахуємо успіхи/збої для degraded mode
+  // ---------- Акаунт і рівень доступу ----------
+  let session = Session.load();
+  const currentUser = () => (session ? session.user : null);
+  const authHeaders = () => (session ? { Authorization: `Bearer ${session.token}` } : {});
+
+  // Гостя ведемо на вхід і після входу повертаємо туди, де він був
+  const loginUrl = () => `auth.html?next=${encodeURIComponent(location.pathname.split('/').pop() + location.search)}#login`;
+
+  function renderSession() {
+    const user = currentUser();
+    $('guestLinks').hidden = Boolean(user);
+    $('account').hidden = !user;
+    document.body.dataset.role = Access.roleOf(user);
+    if (user) {
+      $('accountName').textContent = user.nickname;
+      $('accountAvatar').textContent = user.nickname.charAt(0).toUpperCase();
+      $('accountRole').textContent = Access.label(user);
+      $('accountRole').className = `role-badge role-${Access.roleOf(user)}`;
+    }
+  }
+
+  function dropSession() {
+    Session.clear();
+    session = null;
+    renderSession();
+  }
+
+  $('logoutBtn').addEventListener('click', async () => {
+    try {
+      const res = await callApi('POST /auth/logout', `${API_URL}/auth/logout`, { method: 'POST', headers: authHeaders() });
+      if (res.status !== 204 && res.status !== 401) throw await readError(res);
+    } catch (e) {
+      log(`Вихід: сервер не підтвердив (${e.message || e.code})`, 'warn');
+    }
+    dropSession();
+    log('Вихід з акаунта', 'ok');
+    if (page !== 'home') location.href = 'index.html';
+    else loadMaterials();
+  });
+
+  // ---------- Запити до API ----------
   async function callApi(label, url, opts = {}) {
     try {
       const res = await fetchWithResilience(url, { retry: RETRY, onAttempt: attemptLogger(label), ...opts });
       if (res.status >= 500 || res.status === 429) degraded.failure();
       else degraded.success();
+      // Токен прострочено або відкликано — сесія більше не дійсна
+      if (res.status === 401 && session && opts.headers && opts.headers.Authorization) {
+        dropSession();
+        log('Сесія завершилась — потрібно увійти знову', 'warn');
+      }
       return res;
     } catch (e) {
       degraded.failure();
@@ -103,7 +150,16 @@
     return `${parts.join(' — ')} (requestId: ${e.requestId || '—'})`;
   };
 
-  // ---------- Список матеріалів (таблиця) ----------
+  async function deleteMaterial(m) {
+    if (!window.confirm(`Видалити «${m.title}»?`)) return false;
+    const res = await callApi(`DELETE /materials/${m.id}`, `${API_URL}/materials/${m.id}`, { method: 'DELETE', headers: authHeaders() });
+    if (res.status === 204) { log(`Матеріал #${m.id} видалено`, 'ok'); return true; }
+    const err = await readError(res);
+    window.alert(res.status === 403 ? 'Недостатньо прав: видаляти можна лише свої матеріали' : describeError(err));
+    return false;
+  }
+
+  // ---------- Головна: пошук і таблиця ----------
   const cell = (text, cls) => {
     const td = document.createElement('td');
     if (cls) td.className = cls;
@@ -112,6 +168,35 @@
   };
   const formatDate = (iso) => (iso ? new Date(iso).toLocaleDateString('uk-UA') : '—');
 
+  function titleCell(m) {
+    const td = cell('', 'title');
+    const a = document.createElement('a');
+    a.textContent = m.title;
+    if (Access.can(currentUser(), P.MATERIAL_READ)) {
+      a.href = `material.html?id=${m.id}`;
+    } else {
+      // Гість бачить каталог, але відкрити матеріал — лише після входу
+      a.href = `auth.html?next=${encodeURIComponent(`material.html?id=${m.id}`)}#login`;
+      a.title = 'Увійдіть, щоб відкрити матеріал';
+      a.append(Object.assign(document.createElement('span'), { className: 'lock', textContent: ' 🔒' }));
+    }
+    td.appendChild(a);
+    return td;
+  }
+
+  function actionsCell(m) {
+    const td = cell('', 'actions');
+    if (Access.canManageMaterial(currentUser(), m, 'delete')) {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-danger btn-xs';
+      btn.textContent = 'Видалити';
+      btn.dataset.api = '';
+      btn.addEventListener('click', async () => { if (await deleteMaterial(m)) loadMaterials(); });
+      td.appendChild(btn);
+    }
+    return td;
+  }
+
   function renderRows(items) {
     const tbody = $('list');
     tbody.innerHTML = '';
@@ -119,27 +204,26 @@
       const tr = document.createElement('tr');
       tr.className = 'empty';
       const td = cell('Нічого не знайдено');
-      td.colSpan = 7;
+      td.colSpan = 8;
       tr.appendChild(td);
       tbody.appendChild(tr);
       return;
     }
     items.forEach((m) => {
       const tr = document.createElement('tr');
-      const chip = document.createElement('span');
-      chip.className = 'chip';
-      chip.textContent = m.type;
+      const chip = Object.assign(document.createElement('span'), { className: 'chip', textContent: m.type });
       const typeTd = cell('');
       typeTd.appendChild(chip);
       tr.append(
-        cell(m.title, 'title'), cell(m.subject), cell(String(m.course)), cell(m.university || '—'),
-        typeTd, cell(m.authorNickname || '—'), cell(formatDate(m.createdAt)),
+        titleCell(m), cell(m.subject), cell(String(m.course)), cell(m.university || '—'),
+        typeTd, cell(m.authorNickname || '—'), cell(formatDate(m.createdAt)), actionsCell(m),
       );
       tbody.appendChild(tr);
     });
   }
 
   async function loadMaterials() {
+    if (!$('list')) return;
     $('listError').textContent = '';
     const q = $('searchInput').value.trim();
     const url = `${API_URL}/materials${q ? `?q=${encodeURIComponent(q)}` : ''}`;
@@ -156,59 +240,23 @@
     }
   }
 
-  $('searchForm').addEventListener('submit', (event) => {
-    event.preventDefault();
-    loadMaterials();
-  });
-
-  // ---------- Акаунт: шапка й вихід (вхід і реєстрація — на auth.html) ----------
-  let session = Session.load();
-
-  function renderSession() {
-    const user = session && session.user;
-    $('guestLinks').hidden = Boolean(user);
-    $('account').hidden = !user;
-    if (user) {
-      $('accountName').textContent = user.role === 'admin' ? `${user.nickname} (адмін)` : user.nickname;
-      $('accountAvatar').textContent = user.nickname.charAt(0).toUpperCase();
-    }
-    $('authorHint').innerHTML = '';
-    if (user) {
-      $('authorHint').textContent = `Від імені: ${user.nickname}`;
-    } else {
-      $('authorHint').append('Щоб додати матеріал, ');
-      const link = document.createElement('a');
-      link.href = 'auth.html#login';
-      link.textContent = 'увійдіть або зареєструйтесь';
-      $('authorHint').append(link, '.');
-    }
+  if (page === 'home') {
+    $('searchForm').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const q = $('searchInput').value.trim();
+      history.replaceState(null, '', q ? `?q=${encodeURIComponent(q)}` : location.pathname);
+      loadMaterials();
+    });
+    const q = new URLSearchParams(location.search).get('q');
+    if (q) $('searchInput').value = q;
   }
 
-  function dropSession(reason) {
-    Session.clear();
-    session = null;
-    renderSession();
-    if (reason) showResult(reason, false);
+  // ---------- Сторінка «Додати матеріал» ----------
+  function showResult(text, ok) {
+    $('createResult').textContent = text;
+    $('createResult').className = `result ${ok ? 'ok' : 'bad'}`;
   }
 
-  $('logoutBtn').addEventListener('click', async () => {
-    const { token } = session || {};
-    try {
-      const res = await callApi('POST /auth/logout', `${API_URL}/auth/logout`, {
-        method: 'POST', headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.status !== 204 && res.status !== 401) throw await readError(res);
-    } catch (e) {
-      // Локально виходимо в будь-якому разі; на сервері токен сам згасне після строку дії
-      log(`Вихід: сервер не підтвердив (${e.message || e.code})`, 'warn');
-    }
-    dropSession();
-    log('Вихід з акаунта', 'ok');
-  });
-
-  renderSession();
-
-  // ---------- Створення матеріалу ----------
   function readForm() {
     const f = new FormData($('createForm'));
     const payload = {
@@ -217,81 +265,472 @@
       university: f.get('university').trim(),
       course: Number(f.get('course')),
       type: f.get('type'),
-      fileId: f.get('fileId').trim(),
     };
     const description = f.get('description').trim();
-    if (description) payload.description = description; // поле необов'язкове за контрактом
-    return { payload, token: session && session.token };
+    if (description) payload.description = description;
+    return payload;
   }
 
-  async function postMaterial(payload, token, idempotencyKey, label = 'POST /materials') {
-    const res = await callApi(label, `${API_URL}/materials`, {
+  const postMaterial = (payload, idempotencyKey) => callApi('POST /materials', `${API_URL}/materials`, {
+    method: 'POST', headers: authHeaders(), body: JSON.stringify(payload), idempotencyKey,
+  });
+
+  function renderAddPage() {
+    const allowed = Access.can(currentUser(), P.MATERIAL_CREATE);
+    $('createCard').hidden = !allowed;
+    $('lockedCard').hidden = allowed;
+    if (!allowed) $('lockedLogin').href = loginUrl();
+  }
+
+  // ---------- Файл: вибір, перевірка, завантаження (POST /files) ----------
+  const MB = 1024 * 1024;
+  // Ті самі ліміти, що на сервері (business_doc.md, вимога №9) — щоб не вантажити зайве
+  const FORMAT_LIMITS = {
+    pdf: 50, doc: 20, docx: 20, txt: 20, ppt: 50, pptx: 50, zip: 50, mp3: 30, wav: 30, mp4: 100,
+  };
+  const UPLOAD_RETRY = { retries: 1, baseDelayMs: 500, timeoutMs: 120000, jitter: true }; // великі файли вантажаться довше
+
+  // selected — обраний файл; uploaded — результат POST /files для нього (щоб не вантажити вдруге при повторі)
+  let selected = null;
+  let uploaded = null;
+
+  function checkFile(file) {
+    const ext = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '';
+    const limit = FORMAT_LIMITS[ext];
+    if (!limit) return `Формат${ext ? ` .${ext}` : ''} не підтримується. Можна: ${Object.keys(FORMAT_LIMITS).join(', ')}`;
+    if (file.size > limit * MB) return `Файл .${ext} має бути не більший за ${limit} МБ`;
+    if (!file.size) return 'Файл порожній';
+    return null;
+  }
+
+  const formatSize = (bytes) => (bytes >= MB ? `${(bytes / MB).toFixed(1)} МБ` : `${Math.max(1, Math.round(bytes / 1024))} КБ`);
+
+  function selectFile(file) {
+    const zone = $('dropzone');
+    if (!file) return;
+    const problem = checkFile(file);
+    zone.classList.toggle('has-file', !problem);
+    zone.classList.toggle('has-error', Boolean(problem));
+    if (problem) {
+      selected = null;
+      $('dzTitle').textContent = file.name;
+      $('dzHint').textContent = problem;
+      return;
+    }
+    selected = file;
+    uploaded = null;
+    $('dzTitle').textContent = `📄 ${file.name}`;
+    $('dzHint').textContent = `${formatSize(file.size)} · натисніть, щоб замінити`;
+  }
+
+  function resetFile() {
+    selected = null;
+    uploaded = null;
+    $('fileInput').value = '';
+    $('dropzone').classList.remove('has-file', 'has-error');
+    $('dzTitle').innerHTML = 'Перетягни файл сюди або <u>обери на пристрої</u>';
+    $('dzHint').textContent = 'PDF, Word, TXT, PowerPoint, ZIP — до 20–50 МБ · аудіо до 30 МБ · відео до 100 МБ';
+  }
+
+  async function uploadFile(file) {
+    const res = await callApi('POST /files', `${API_URL}/files`, {
       method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: JSON.stringify(payload),
-      idempotencyKey,
+      headers: { ...authHeaders(), 'Content-Type': file.type || 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name) },
+      body: file,
+      retry: UPLOAD_RETRY,
     });
-    if (res.status === 401 && token) dropSession('Сесія завершилась — увійдіть знову'); // токен прострочено або відкликано
-    return res;
+    if (res.status !== 201) throw Object.assign(await readError(res), { status: res.status });
+    return res.json();
   }
 
-  function showResult(text, ok) {
-    $('createResult').textContent = text;
-    $('createResult').className = `result ${ok ? 'ok' : 'bad'}`;
+  function setupDropzone() {
+    const zone = $('dropzone');
+    $('fileInput').addEventListener('change', (e) => selectFile(e.target.files[0]));
+    ['dragenter', 'dragover'].forEach((t) => zone.addEventListener(t, (e) => { e.preventDefault(); zone.classList.add('dragging'); }));
+    ['dragleave', 'drop'].forEach((t) => zone.addEventListener(t, (e) => { e.preventDefault(); zone.classList.remove('dragging'); }));
+    zone.addEventListener('drop', (e) => selectFile(e.dataTransfer.files[0]));
   }
 
-  $('createForm').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const submitBtn = event.submitter || $('createForm').querySelector('[type=submit]');
-    submitBtn.disabled = true; // захист від подвійного кліку на рівні UI
-    const { payload, token } = readForm();
-    const key = await getOrReuseKey(payload);
-    log(`Idempotency-Key ${key.slice(0, 8)}… для цих даних`);
+  // Предмети й університети для списків: базові + ті, що вже є в каталозі
+  const BASE_SUBJECTS = [
+    'Алгоритми', 'Архітектура ПЗ', 'Бази даних', 'Вебпрограмування', 'Вища математика',
+    'Дискретна математика', 'Комп’ютерні мережі', 'ООП', 'Операційні системи', 'Фізика',
+  ];
+  const BASE_UNIVERSITIES = ['КНУ', 'КПІ', 'ЛНУ ім. Франка', 'ХНУ'];
+
+  async function fillFromCatalog(subjectCombo, universityCombo) {
     try {
-      const res = await postMaterial(payload, token, key);
-      if (res.status === 201) {
-        const m = await res.json();
-        // Заголовок видно браузеру, лише якщо бекенд віддає Access-Control-Expose-Headers: X-Request-Id
-        const rid = res.headers.get('X-Request-Id') || m.requestId || '—';
-        showResult(`Створено матеріал #${m.id} «${m.title}» (requestId: ${rid})`, true);
-        loadMaterials(); // новий матеріал одразу з'являється в таблиці
-      } else {
-        const err = await readError(res);
-        if (res.status >= 400 && res.status < 500 && res.status !== 429) await forgetKey(payload);
-        showResult(`Помилка ${res.status}: ${describeError(err)}`, false);
+      const res = await callApi('GET /materials (для списків)', `${API_URL}/materials`);
+      if (!res.ok) return;
+      const { items } = await res.json();
+      subjectCombo.setOptions(items.map((m) => m.subject));
+      universityCombo.setOptions(items.map((m) => m.university));
+    } catch (_) { /* лишаються базові списки */ }
+  }
+
+  if (page === 'add') {
+    renderAddPage();
+    setupDropzone();
+    const subjectCombo = window.StudyCombobox.attach($('subjectInput'), { options: BASE_SUBJECTS, newLabel: 'Новий предмет' });
+    const universityCombo = window.StudyCombobox.attach($('universityInput'), { options: BASE_UNIVERSITIES, newLabel: 'Новий університет' });
+    window.StudyCombobox.attach($('courseInput'), {
+      options: ['1 курс', '2 курс', '3 курс', '4 курс', '5 курс', '6 курс'],
+      strict: true,
+      onSelect: (label) => { $('courseValue').value = String(parseInt(label, 10)); },
+    });
+    if (Access.can(currentUser(), P.MATERIAL_CREATE)) fillFromCatalog(subjectCombo, universityCombo);
+
+    $('createForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!selected) {
+        $('dropzone').classList.add('has-error');
+        showResult('Додайте файл матеріалу', false);
+        return;
       }
-    } catch (e) {
-      // Ключ лишаємо: повторне натискання з тими ж даними не створить дубль
-      showResult(`Не вдалося: ${e.message} (requestId: ${e.requestId}). Натисніть ще раз — дубля не буде.`, false);
-    } finally {
-      if (!degraded.isDegraded()) submitBtn.disabled = false;
-    }
-  });
+      // Кнопка вимкнена на час запиту — подвійний клік не надішле форму двічі
+      const submitBtn = event.submitter || $('createForm').querySelector('[type=submit]');
+      submitBtn.disabled = true;
+      try {
+        if (!uploaded) {
+          showResult('Завантажуємо файл…', true);
+          uploaded = await uploadFile(selected);
+          log(`Файл ${uploaded.fileName} завантажено (${uploaded.id})`, 'ok');
+        }
+        const payload = { ...readForm(), fileId: uploaded.id };
+        const key = await getOrReuseKey(payload); // повтор із тими самими даними не створить дубль
+        const res = await postMaterial(payload, key);
+        if (res.status === 201) {
+          const m = await res.json();
+          showResult(`Матеріал «${m.title}» додано. `, true);
+          $('createResult').append(Object.assign(document.createElement('a'), { href: `material.html?id=${m.id}`, className: 'result-link', textContent: 'Відкрити матеріал →' }));
+          $('createForm').reset();
+          $('courseInput').value = '3 курс';
+          $('courseValue').value = '3';
+          resetFile();
+        } else if (res.status === 401) {
+          renderAddPage(); // сесія завершилась — показуємо заклик увійти
+        } else {
+          const err = await readError(res);
+          if (res.status >= 400 && res.status < 500 && res.status !== 429) await forgetKey(payload);
+          showResult(`Помилка ${res.status}: ${describeError(err)}`, false);
+        }
+      } catch (e) {
+        if (e.status === 401) renderAddPage();
+        else if (e.error) showResult(`Файл не прийнято: ${e.details ? e.details.map((d) => d.message).join('; ') : describeError(e)}`, false);
+        else showResult(`Не вдалося: ${e.message}. Натисніть ще раз — дубля не буде.`, false);
+      } finally {
+        if (!degraded.isDegraded()) submitBtn.disabled = false;
+      }
+    });
+  }
 
-  // Демонстрація: два однакові POST одночасно з тим самим ключем → однаковий id
-  $('doubleBtn').addEventListener('click', async () => {
-    const { payload, token } = readForm();
-    const key = await getOrReuseKey(payload);
-    log(`Демо: 2 паралельні POST з Idempotency-Key ${key.slice(0, 8)}…`);
+  // ---------- Сторінка матеріалу ----------
+  // Файл віддається лише зареєстрованим, тому качаємо через запит із токеном, а не звичайним посиланням
+  async function downloadFile(file) {
+    const btn = $('mDownload');
+    btn.disabled = true;
+    $('mFileNote').textContent = '';
     try {
-      const [a, b] = await Promise.all([
-        postMaterial(payload, token, key, 'POST #1'),
-        postMaterial(payload, token, key, 'POST #2'),
-      ]);
-      const [ja, jb] = await Promise.all([a.json().catch(() => ({})), b.json().catch(() => ({}))]);
-      const same = a.status === 201 && b.status === 201 && ja.id === jb.id;
-      showResult(
-        `Відповіді: ${a.status} (id ${ja.id ?? '—'}) і ${b.status} (id ${jb.id ?? '—'}) — `
-        + (same ? 'той самий матеріал, дубля немає ✔' : 'різні результати: бекенд ще не підтримує Idempotency-Key'),
-        same,
-      );
+      const res = await callApi(`GET ${file.url}`, `${API_URL}${file.url}`, { headers: authHeaders(), retry: { retries: 1, timeoutMs: 120000 } });
+      if (res.status === 401) { location.replace(loginUrl()); return; }
+      if (!res.ok) {
+        const err = await readError(res);
+        $('mFileNote').textContent = err.code === 'FILE_CONTENT_MISSING'
+          ? 'Це тестовий матеріал: файлу на сервері немає.'
+          : `Не вдалося завантажити: ${describeError(err)}`;
+        return;
+      }
+      const url = URL.createObjectURL(await res.blob());
+      const a = Object.assign(document.createElement('a'), { href: url, download: file.fileName });
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
     } catch (e) {
-      showResult(`Не вдалося: ${e.message}`, false);
+      $('mFileNote').textContent = `Не вдалося завантажити: ${e.message}`;
+    } finally {
+      btn.disabled = false;
     }
-  });
+  }
 
-  $('healthBtn').addEventListener('click', checkHealth);
+  async function loadMaterialPage() {
+    const id = new URLSearchParams(location.search).get('id');
+    if (!Access.can(currentUser(), P.MATERIAL_READ)) { location.replace(loginUrl()); return; }
+
+    try {
+      const res = await callApi(`GET /materials/${id}`, `${API_URL}/materials/${encodeURIComponent(id)}`, { headers: authHeaders() });
+      if (res.status === 401) { location.replace(loginUrl()); return; }
+      if (!res.ok) {
+        const err = await readError(res);
+        $('materialError').textContent = res.status === 404 ? 'Матеріал не знайдено або видалено.' : describeError(err);
+        return;
+      }
+      const m = await res.json();
+      document.title = `${m.title} · StudySwap`;
+      $('mTitle').textContent = m.title;
+      $('mType').textContent = m.type;
+      $('mSubject').textContent = m.subject;
+      $('mCourse').textContent = `${m.course} курс`;
+      $('mUniversity').textContent = m.university;
+      $('mAuthor').textContent = m.authorNickname;
+      $('mDate').textContent = formatDate(m.createdAt);
+      $('mDescription').textContent = m.description || 'Опису немає.';
+      $('mFileName').textContent = `${m.file.fileName} · ${(m.file.sizeBytes / 1024 / 1024).toFixed(1)} МБ`;
+      $('mDownload').onclick = () => downloadFile(m.file);
+
+      const canDelete = Access.canManageMaterial(currentUser(), m, 'delete');
+      $('mDelete').hidden = !canDelete;
+      $('mAccessNote').textContent = canDelete
+        ? (currentUser().id === m.authorId ? 'Це ваш матеріал: ви можете його видалити.' : 'Ви адмін: можете видалити будь-який матеріал.')
+        : '';
+      $('mDelete').onclick = async () => { if (await deleteMaterial(m)) location.href = 'index.html'; };
+      $('materialCard').hidden = false;
+    } catch (e) {
+      $('materialError').textContent = `Не вдалося завантажити: ${e.message} (requestId: ${e.requestId})`;
+    }
+  }
+
+  // ---------- Профіль ----------
+  const initials = (name) => name.trim().split(/[\s_.-]+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
+
+  // Після зміни нікнейма оновлюємо збережену сесію, щоб шапка показала нове ім'я
+  function updateSessionUser(user) {
+    if (!session) return;
+    const secondsLeft = Math.max(1, Math.round((session.expiresAt - Date.now()) / 1000));
+    session = Session.save({ accessToken: session.token, expiresIn: secondsLeft, user: { ...session.user, ...user } });
+    renderSession();
+  }
+
+  function renderProfileHead(me) {
+    $('pAvatar').textContent = initials(me.nickname);
+    $('pNickname').textContent = me.nickname;
+    $('pRole').textContent = Access.roleLabel(me.role);
+    $('pRole').className = `profile-role role-${me.role}`;
+    $('pRole').hidden = me.role === 'user';
+    $('pLogin').textContent = `@${me.login}`;
+    $('pEmail').textContent = me.email;
+    const f = $('profileForm');
+    f.nickname.value = me.nickname;
+    f.email.value = me.email;
+    f.login.value = me.login;
+  }
+
+  const isAdmin = () => Access.isAdmin(currentUser());
+
+  function profileRow(m) {
+    const tr = document.createElement('tr');
+    const title = cell('', 'title');
+    title.appendChild(Object.assign(document.createElement('a'), { href: `material.html?id=${m.id}`, textContent: m.title }));
+    const typeTd = cell('');
+    typeTd.appendChild(Object.assign(document.createElement('span'), { className: 'chip', textContent: m.type }));
+    const actions = cell('', 'actions');
+    const user = currentUser();
+    if (Access.canManageMaterial(user, m, 'update')) {
+      const edit = Object.assign(document.createElement('button'), { className: 'btn btn-outline btn-xs', textContent: 'Редагувати' });
+      edit.dataset.api = '';
+      edit.addEventListener('click', () => openEdit(m));
+      actions.appendChild(edit);
+    }
+    if (Access.canManageMaterial(user, m, 'delete')) {
+      const del = Object.assign(document.createElement('button'), { className: 'btn btn-danger btn-xs', textContent: 'Видалити' });
+      del.dataset.api = '';
+      del.addEventListener('click', async () => { if (await deleteMaterial(m)) loadProfileMaterials(); });
+      actions.appendChild(del);
+    }
+    const authorTd = cell(m.authorNickname || '—');
+    authorTd.hidden = !isAdmin();
+    tr.append(title, cell(m.subject), cell(String(m.course)), typeTd, authorTd, cell(formatDate(m.createdAt)), actions);
+    return tr;
+  }
+
+  async function loadProfileMaterials() {
+    $('pListError').textContent = '';
+    // Адмін керує всіма матеріалами, користувач — своїми
+    const url = isAdmin() ? `${API_URL}/materials` : `${API_URL}/users/me/materials`;
+    try {
+      const res = await callApi(isAdmin() ? 'GET /materials' : 'GET /users/me/materials', url, { headers: authHeaders() });
+      if (res.status === 401) { location.replace(loginUrl()); return; }
+      if (!res.ok) { $('pListError').textContent = describeError(await readError(res)); return; }
+      const { items, total } = await res.json();
+      $('pCount').textContent = String(total);
+      const tbody = $('pList');
+      tbody.innerHTML = '';
+      if (!items.length) {
+        const tr = document.createElement('tr');
+        tr.className = 'empty';
+        const td = cell('');
+        td.colSpan = 7;
+        td.append('Ви ще нічого не додали. ', Object.assign(document.createElement('a'), { href: 'add.html', textContent: 'Додати перший матеріал →' }));
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        return;
+      }
+      items.forEach((m) => tbody.appendChild(profileRow(m)));
+    } catch (e) {
+      $('pListError').textContent = `Не вдалося завантажити: ${e.message}`;
+    }
+  }
+
+  // Редагування матеріалу у вікні; надсилаємо лише змінені поля (PATCH)
+  let editing = null;
+  function openEdit(m) {
+    editing = m;
+    const f = $('editForm');
+    f.title.value = m.title;
+    f.subject.value = m.subject;
+    f.course.value = String(m.course);
+    f.type.value = m.type;
+    f.description.value = m.description || '';
+    $('editResult').textContent = '';
+    $('editDialog').showModal();
+  }
+
+  async function saveEdit(event) {
+    event.preventDefault();
+    const f = $('editForm');
+    const next = {
+      title: f.title.value.trim(), subject: f.subject.value.trim(), course: Number(f.course.value),
+      type: f.type.value, description: f.description.value.trim(),
+    };
+    const changes = Object.fromEntries(Object.entries(next).filter(([k, v]) => v !== (editing[k] ?? '')));
+    if (!Object.keys(changes).length) { $('editDialog').close(); return; }
+    const res = await callApi(`PATCH /materials/${editing.id}`, `${API_URL}/materials/${editing.id}`, {
+      method: 'PATCH', headers: authHeaders(), body: JSON.stringify(changes),
+    });
+    if (res.ok) { $('editDialog').close(); loadProfileMaterials(); return; }
+    const err = await readError(res);
+    $('editResult').className = 'result bad';
+    $('editResult').textContent = res.status === 403 ? 'Недостатньо прав' : (err.details ? err.details.map((d) => d.message).join('; ') : describeError(err));
+  }
+
+  const ACCOUNT_MESSAGES = {
+    NICKNAME_TAKEN: 'Такий нікнейм уже зайнятий',
+    EMAIL_TAKEN: 'Акаунт із такою поштою вже існує',
+    WRONG_PASSWORD: 'Поточний пароль неправильний',
+  };
+  const accountError = (e) => ACCOUNT_MESSAGES[e.code] || (e.details ? e.details.map((d) => d.message).join('; ') : describeError(e));
+  const setResult = (id, text, ok) => { $(id).textContent = text; $(id).className = `result ${ok ? 'ok' : 'bad'}`; };
+
+
+  // ---------- Суперадмін: призначення адмінів ----------
+  function roleRow(u) {
+    const tr = document.createElement('tr');
+    const roleTd = cell('');
+    roleTd.appendChild(Object.assign(document.createElement('span'), { className: `role-chip ${u.role}`, textContent: Access.roleLabel(u.role) }));
+    const actions = cell('', 'actions');
+    const me = currentUser();
+    if (u.id !== me.id && u.role !== 'superadmin') {
+      const toAdmin = u.role !== 'admin';
+      const btn = Object.assign(document.createElement('button'), {
+        className: `btn btn-xs ${toAdmin ? 'btn-outline' : 'btn-danger'}`,
+        textContent: toAdmin ? 'Зробити адміном' : 'Зняти адміна',
+      });
+      btn.dataset.api = '';
+      btn.addEventListener('click', () => changeRole(u, toAdmin ? 'admin' : 'user'));
+      actions.appendChild(btn);
+    }
+    tr.append(cell(u.nickname), cell(`@${u.login}`), cell(u.email), roleTd, actions);
+    return tr;
+  }
+
+  async function loadRoles() {
+    const q = $('rolesSearch').value.trim();
+    const res = await callApi('GET /users', `${API_URL}/users${q ? `?q=${encodeURIComponent(q)}` : ''}`, { headers: authHeaders() });
+    if (!res.ok) { setResult('rolesResult', describeError(await readError(res)), false); return; }
+    const { items } = await res.json();
+    const tbody = $('rolesList');
+    tbody.innerHTML = '';
+    if (!items.length) {
+      const tr = document.createElement('tr');
+      tr.className = 'empty';
+      const td = cell('Нікого не знайдено');
+      td.colSpan = 5;
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    }
+    items.forEach((u) => tbody.appendChild(roleRow(u)));
+  }
+
+  async function changeRole(u, role) {
+    const question = role === 'admin' ? `Зробити ${u.nickname} адміном?` : `Зняти з ${u.nickname} роль адміна?`;
+    if (!window.confirm(question)) return;
+    const res = await callApi(`PATCH /users/${u.id}/role`, `${API_URL}/users/${u.id}/role`, {
+      method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ role }),
+    });
+    if (res.ok) {
+      setResult('rolesResult', role === 'admin' ? `${u.nickname} тепер адмін ✓` : `${u.nickname} більше не адмін ✓`, true);
+      loadRoles();
+    } else {
+      const err = await readError(res);
+      setResult('rolesResult', res.status === 403 ? 'Недостатньо прав' : describeError(err), false);
+    }
+  }
+
+  let rolesTimer = null;
+  function setupRoles() {
+    $('rolesCard').hidden = false;
+    $('rolesSearch').addEventListener('input', () => { clearTimeout(rolesTimer); rolesTimer = setTimeout(loadRoles, 300); });
+    loadRoles();
+  }
+
+  async function loadProfilePage() {
+    if (!currentUser()) { location.replace(loginUrl()); return; }
+    try {
+      const res = await callApi('GET /users/me', `${API_URL}/users/me`, { headers: authHeaders() });
+      if (res.status === 401) { location.replace(loginUrl()); return; }
+      if (!res.ok) throw await readError(res);
+      const me = await res.json();
+      renderProfileHead(me);
+      updateSessionUser(me);
+    } catch (e) {
+      renderProfileHead({ ...currentUser(), login: currentUser().login || '', email: currentUser().email || '' });
+    }
+    $('pMaterialsTitle').textContent = isAdmin() ? 'Всі матеріали' : 'Мої матеріали';
+    $('pAuthorCol').hidden = !isAdmin();
+    $('adminNext').hidden = !isAdmin();
+    if (Access.can(currentUser(), P.USER_ROLE_MANAGE)) setupRoles();
+    loadProfileMaterials();
+
+    $('profileForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const f = event.target;
+      const me = currentUser();
+      const changes = {};
+      if (f.nickname.value.trim() !== me.nickname) changes.nickname = f.nickname.value.trim();
+      if (f.email.value.trim() !== me.email) changes.email = f.email.value.trim();
+      if (!Object.keys(changes).length) { setResult('profileResult', 'Нічого не змінено', true); return; }
+      const res = await callApi('PATCH /users/me', `${API_URL}/users/me`, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(changes) });
+      if (res.ok) {
+        const updated = await res.json();
+        renderProfileHead(updated);
+        updateSessionUser(updated);
+        setResult('profileResult', 'Збережено ✓', true);
+      } else {
+        setResult('profileResult', accountError(await readError(res)), false);
+      }
+    });
+
+    $('passwordForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const f = event.target;
+      const body = { currentPassword: f.currentPassword.value, newPassword: f.newPassword.value };
+      const res = await callApi('POST /users/me/password', `${API_URL}/users/me/password`, {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify(body), retry: { retries: 0 },
+      });
+      if (res.status === 204) { f.reset(); setResult('passwordResult', 'Пароль змінено ✓', true); }
+      else setResult('passwordResult', accountError(await readError(res)), false);
+    });
+
+    $('logoutBtn2').addEventListener('click', () => $('logoutBtn').click());
+    $('editForm').addEventListener('submit', saveEdit);
+    $('editCancel').addEventListener('click', () => $('editDialog').close());
+  }
+
+  // ---------- Старт ----------
   $('retryNowBtn').addEventListener('click', () => degraded.retryNow());
+  renderSession();
 
-  checkHealth().then((ok) => { if (ok) loadMaterials(); });
+  if (page === 'material') loadMaterialPage(); // гостя перекине на вхід одразу, без очікування /health
+  if (page === 'profile') loadProfilePage();
+  checkHealth().then((ok) => { if (ok && page === 'home') loadMaterials(); });
 }());

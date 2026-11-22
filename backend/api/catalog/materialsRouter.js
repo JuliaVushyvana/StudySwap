@@ -14,7 +14,7 @@ function createMaterialsRouter({ materialService }) {
   });
 
   router.get('/:id', (req, res) => {
-    res.status(200).json(materialService.get(req.params.id));
+    res.status(200).json(materialService.get(req.user, req.params.id));
   });
 
   router.patch('/:id', (req, res) => {

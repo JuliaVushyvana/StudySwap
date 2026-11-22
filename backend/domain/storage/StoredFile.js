@@ -3,6 +3,18 @@
 
 const crypto = require('crypto');
 
+const MB = 1024 * 1024;
+
+// Допустимі формати й ліміти розміру (business_doc.md, нефункціональна вимога №9).
+// Перевіряє модуль «Зберігання файлів» під час завантаження (POST /files).
+const FILE_LIMITS = Object.freeze({
+  pdf: 50 * MB, doc: 20 * MB, docx: 20 * MB, txt: 20 * MB,
+  ppt: 50 * MB, pptx: 50 * MB,
+  zip: 50 * MB,
+  mp3: 30 * MB, wav: 30 * MB,
+  mp4: 100 * MB,
+});
+
 class StoredFile {
   constructor({ id = crypto.randomUUID(), originalName, mimeType, sizeBytes, uploadedBy, uploadedAt = new Date() }) {
     if (!originalName) throw new Error('Потрібна назва файлу');
@@ -21,4 +33,4 @@ class StoredFile {
   }
 }
 
-module.exports = { StoredFile };
+module.exports = { StoredFile, FILE_LIMITS };

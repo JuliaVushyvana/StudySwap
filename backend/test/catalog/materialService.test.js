@@ -7,6 +7,7 @@ const { createMaterialService } = require('../../service/catalog/materialService
 const { createIdempotencyService } = require('../../service/idempotency/idempotencyService');
 const { ValidationError, ForbiddenError, NotFoundError, UnauthorizedError, ServiceUnavailableError } = require('../../service/errors');
 const { User, Role } = require('../../domain/access/User');
+const { accessPolicy } = require('../../service/access/accessService');
 
 const NOW = new Date('2026-11-20T10:15:00Z');
 const born = new Date('2005-03-14');
@@ -53,7 +54,7 @@ const validBody = () => ({
 
 function setup({ materialRepository = fakeMaterialRepository(), now = () => NOW } = {}) {
   const idempotencyService = createIdempotencyService({ idempotencyRepository: fakeIdempotencyRepository(), now });
-  return createMaterialService({ materialRepository, storageService: fakeStorageService, idempotencyService, now, logger: silentLogger });
+  return createMaterialService({ materialRepository, storageService: fakeStorageService, idempotencyService, accessPolicy, now, logger: silentLogger });
 }
 
 test('create: коректні дані → матеріал за схемою MaterialResponse', () => {
@@ -75,7 +76,7 @@ test('create: коректні дані → матеріал за схемою M
     createdAt: '2026-11-20T10:15:00.000Z',
     updatedAt: '2026-11-20T10:15:00.000Z',
   });
-  assert.deepEqual(service.get(100), created);
+  assert.deepEqual(service.get(anna, 100), created);
 });
 
 test('create: без title → ValidationError TITLE_REQUIRED', () => {
@@ -129,7 +130,7 @@ test('remove: адмін видаляє чужий матеріал, після 
 
   service.remove(admin, id);
 
-  assert.throws(() => service.get(id), NotFoundError);
+  assert.throws(() => service.get(anna, id), NotFoundError);
   assert.throws(() => service.remove(admin, id), NotFoundError);
 });
 
@@ -184,4 +185,63 @@ test('list: БД недоступна і копії ще немає → ServiceU
     assert.ok(err.retryAfter > 0);
     return true;
   });
+});
+
+// ---------- Три рівні доступу ----------
+
+test('get: гість не відкриває матеріал → 401, а каталог (list) бачить', () => {
+  const service = setup();
+  const { id } = service.create(anna, validBody(), key());
+
+  assert.throws(() => service.get(null, id), UnauthorizedError);
+  assert.equal(service.list({}).total, 1);
+});
+
+test('get: заблокований користувач → 401, як гість', () => {
+  const service = setup();
+  const { id } = service.create(anna, validBody(), key());
+  const blocked = Object.assign(Object.create(Object.getPrototypeOf(julia)), julia, { isBlocked: true });
+
+  assert.throws(() => service.get(blocked, id), UnauthorizedError);
+});
+
+test('user: відкриває чужий матеріал, але не змінює і не видаляє його → 403', () => {
+  const service = setup();
+  const { id } = service.create(anna, validBody(), key());
+
+  assert.equal(service.get(julia, id).id, id);
+  assert.throws(() => service.update(julia, id, { title: 'Моя назва' }), ForbiddenError);
+  assert.throws(() => service.remove(julia, id), ForbiddenError);
+});
+
+test('admin: змінює чужий матеріал', () => {
+  const service = setup();
+  const { id } = service.create(anna, validBody(), key());
+
+  assert.equal(service.update(admin, id, { title: 'Виправлено адміном' }).title, 'Виправлено адміном');
+});
+
+test('listMine: лише власні матеріали; гість → 401', () => {
+  const service = setup();
+  service.create(anna, validBody(), key());
+  service.create(julia, { ...validBody(), title: 'Матеріал Юлії' }, key());
+
+  const mine = service.listMine(julia);
+  assert.equal(mine.total, 1);
+  assert.equal(mine.items[0].title, 'Матеріал Юлії');
+  assert.throws(() => service.listMine(null), UnauthorizedError);
+});
+
+test('автор показується з актуальним нікнеймом після зміни в профілі', () => {
+  const nicknames = { 1: 'Anna' };
+  const idempotencyService = createIdempotencyService({ idempotencyRepository: fakeIdempotencyRepository(), now: () => NOW });
+  const service = createMaterialService({
+    materialRepository: fakeMaterialRepository(), storageService: fakeStorageService, idempotencyService, accessPolicy,
+    userDirectory: { nicknameOf: (id) => nicknames[id] || null }, now: () => NOW, logger: silentLogger,
+  });
+  const { id } = service.create(anna, validBody(), key());
+
+  nicknames[1] = 'Anna K'; // змінила нікнейм у профілі
+  assert.equal(service.get(anna, id).authorNickname, 'Anna K');
+  assert.equal(service.list({}).items[0].authorNickname, 'Anna K');
 });

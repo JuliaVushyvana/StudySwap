@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Додати матеріал · StudySwap</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="add">
+  <header class="topbar">
+    <div class="topbar-left">
+      <a class="logo" href="index.html">StudySwap</a>
+      <!-- Пошук з будь-якої сторінки веде на головну з ?q= -->
+      <form class="topbar-search" action="index.html" method="get">
+        <input name="q" maxlength="100" placeholder="Пошук матеріалів" autocomplete="off">
+      </form>
+    </div>
+    <div class="topbar-actions">
+      <a href="add.html" class="btn btn-primary" aria-current="page">+ Додати матеріал</a>
+      <span class="bell" aria-hidden="true">🔔<i></i></span>
+      <!-- Гість: «Увійти / Реєстрація». Після входу: аватар, нікнейм, рівень доступу, «Вийти» -->
+      <span id="guestLinks" class="account">
+        <a href="auth.html#login" class="btn btn-outline">Увійти</a>
+        <a href="auth.html#register" class="btn btn-outline">Реєстрація</a>
+      </span>
+      <span id="account" class="account" hidden>
+        <a href="profile.html" class="account-link" title="Мій профіль">
+          <span class="avatar" id="accountAvatar" aria-hidden="true"></span>
+          <span class="account-text"><span id="accountName"></span><span id="accountRole" class="role-badge"></span></span>
+        </a>
+        <button id="logoutBtn" class="btn btn-outline btn-sm" data-api>Вийти</button>
+      </span>
+    </div>
+  </header>
+
+  <main class="container">
+    <p class="back"><a href="index.html">← До каталогу</a></p>
+
+    <!-- Degraded mode: з'являється після 3 збоїв поспіль -->
+    <div id="banner" class="banner" role="alert">
+      <span class="banner-icon">⚠</span>
+      <span id="bannerText">Сервер перевантажено. Кнопки тимчасово вимкнено.</span>
+      <button id="retryNowBtn" class="btn btn-outline btn-sm">Спробувати зараз</button>
+    </div>
+
+    <!-- Гість: додавати не можна, пропонуємо увійти -->
+    <section class="card card-narrow locked" id="lockedCard" hidden>
+      <div class="locked-icon" aria-hidden="true">🔒</div>
+      <h2 class="title-lg">Додавати матеріали можуть зареєстровані</h2>
+      <p class="hint">Увійдіть або створіть акаунт — це хвилина. Після входу ви повернетесь сюди.</p>
+      <div class="locked-actions">
+        <a id="lockedLogin" href="auth.html#login" class="btn btn-primary">Увійти</a>
+        <a href="auth.html#register" class="btn btn-outline">Реєстрація</a>
+      </div>
+    </section>
+
+    <section class="card card-narrow" id="createCard" hidden>
+      <h2 class="title-lg">Додати матеріал</h2>
+      <form id="createForm">
+        <label class="field">Назва матеріалу
+          <input name="title" maxlength="200" placeholder="Наприклад, Шпаргалка з архітектури" required>
+        </label>
+        <label class="field">Предмет
+          <input name="subject" id="subjectInput" placeholder="Оберіть зі списку або введіть новий" required>
+        </label>
+        <label class="field">Опис
+          <textarea name="description" rows="4" maxlength="1000" placeholder="Коротко про матеріал (до 1000 символів)"></textarea>
+        </label>
+
+        <div class="group">
+          <div class="group-head two"><span>Універ</span><span>Курс</span></div>
+          <div class="group-body two">
+            <input name="university" id="universityInput" placeholder="Оберіть або введіть" aria-label="Університет" required>
+            <input id="courseInput" value="3 курс" aria-label="Курс" readonly>
+            <input type="hidden" name="course" id="courseValue" value="3">
+          </div>
+        </div>
+
+        <div class="group">
+          <div class="group-head"><span>Тип</span></div>
+          <div class="types">
+            <label><input type="radio" name="type" value="конспект" checked> Конспект</label>
+            <label><input type="radio" name="type" value="лекція"> Лекція</label>
+            <label><input type="radio" name="type" value="практична"> Практична</label>
+            <label><input type="radio" name="type" value="лабораторна"> Лабораторна</label>
+            <label><input type="radio" name="type" value="презентація"> Презентація</label>
+            <label><input type="radio" name="type" value="відео"> Відео</label>
+            <label><input type="radio" name="type" value="аудіо"> Аудіо</label>
+            <label><input type="radio" name="type" value="курсова"> Курсова</label>
+            <label><input type="radio" name="type" value="дипломна"> Дипломна</label>
+            <label><input type="radio" name="type" value="магістерська"> Магістерська</label>
+          </div>
+        </div>
+
+        <!-- Перетягни файл або обери на пристрої. Файл вантажиться на сервер (POST /files) під час «Застосувати» -->
+        <label class="dropzone" id="dropzone">
+          <input type="file" id="fileInput" class="visually-hidden"
+                 accept=".pdf,.doc,.docx,.txt,.ppt,.pptx,.zip,.mp3,.wav,.mp4">
+          <span class="dz-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+          </span>
+          <span class="dz-title" id="dzTitle">Перетягни файл сюди або <u>обери на пристрої</u></span>
+          <span class="dz-hint" id="dzHint">PDF, Word, TXT, PowerPoint, ZIP — до 20–50 МБ · аудіо до 30 МБ · відео до 100 МБ</span>
+        </label>
+
+
+        <button type="submit" class="btn btn-primary btn-block" data-api>Застосувати</button>
+      </form>
+      <p id="createResult" class="result"></p>
+    </section>
+
+  </main>
+
+  <script src="lib/http.js"></script>
+  <script src="lib/idempotency.js"></script>
+  <script src="lib/degraded.js"></script>
+  <script src="lib/session.js"></script>
+  <script src="lib/permissions.js"></script>
+  <script src="lib/combobox.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
