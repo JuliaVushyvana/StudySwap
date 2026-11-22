@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Матеріал · StudySwap</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="material">
+  <header class="topbar">
+    <div class="topbar-left">
+      <a class="logo" href="index.html">StudySwap</a>
+      <!-- Пошук з будь-якої сторінки веде на головну з ?q= -->
+      <form class="topbar-search" action="index.html" method="get">
+        <input name="q" maxlength="100" placeholder="Пошук матеріалів" autocomplete="off">
+      </form>
+    </div>
+    <div class="topbar-actions">
+      <a href="add.html" class="btn btn-primary">+ Додати матеріал</a>
+      <span class="bell" aria-hidden="true">🔔<i></i></span>
+      <!-- Гість: «Увійти / Реєстрація». Після входу: аватар, нікнейм, рівень доступу, «Вийти» -->
+      <span id="guestLinks" class="account">
+        <a href="auth.html#login" class="btn btn-outline">Увійти</a>
+        <a href="auth.html#register" class="btn btn-outline">Реєстрація</a>
+      </span>
+      <span id="account" class="account" hidden>
+        <a href="profile.html" class="account-link" title="Мій профіль">
+          <span class="avatar" id="accountAvatar" aria-hidden="true"></span>
+          <span class="account-text"><span id="accountName"></span><span id="accountRole" class="role-badge"></span></span>
+        </a>
+        <button id="logoutBtn" class="btn btn-outline btn-sm" data-api>Вийти</button>
+      </span>
+    </div>
+  </header>
+
+  <main class="container">
+    <p class="back"><a href="index.html">← До каталогу</a></p>
+
+    <!-- Degraded mode: з'являється після 3 збоїв поспіль -->
+    <div id="banner" class="banner" role="alert">
+      <span class="banner-icon">⚠</span>
+      <span id="bannerText">Сервер перевантажено. Кнопки тимчасово вимкнено.</span>
+      <button id="retryNowBtn" class="btn btn-outline btn-sm">Спробувати зараз</button>
+    </div>
+
+    <p id="materialError" class="result bad"></p>
+
+    <article class="card material" id="materialCard" hidden>
+      <div class="material-head">
+        <span class="chip" id="mType"></span>
+        <h1 class="material-title" id="mTitle"></h1>
+        <p class="material-meta">
+          <span id="mSubject"></span> · <span id="mCourse"></span> · <span id="mUniversity"></span>
+        </p>
+      </div>
+
+      <div class="material-grid">
+        <section>
+          <h2>Опис</h2>
+          <p id="mDescription" class="material-description"></p>
+        </section>
+        <aside class="material-side">
+          <div class="material-file">
+            <span class="file-icon" aria-hidden="true">📄</span>
+            <div>
+              <b>Файл</b>
+              <p id="mFileName" class="hint"></p>
+            </div>
+          </div>
+          <button id="mDownload" class="btn btn-primary btn-block" data-api>Завантажити файл</button>
+          <p id="mFileNote" class="hint file-note"></p>
+          <dl class="material-facts">
+            <dt>Автор</dt><dd id="mAuthor"></dd>
+            <dt>Додано</dt><dd id="mDate"></dd>
+          </dl>
+          <p id="mAccessNote" class="hint"></p>
+          <button id="mDelete" class="btn btn-danger btn-block" data-api hidden>Видалити матеріал</button>
+        </aside>
+      </div>
+    </article>
+
+  </main>
+
+  <script src="lib/http.js"></script>
+  <script src="lib/idempotency.js"></script>
+  <script src="lib/degraded.js"></script>
+  <script src="lib/session.js"></script>
+  <script src="lib/permissions.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

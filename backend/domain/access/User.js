@@ -5,7 +5,11 @@ const Role = Object.freeze({
   GUEST: 'guest',
   USER: 'user',
   ADMIN: 'admin',
+  SUPERADMIN: 'superadmin', // адмін, який ще й призначає та знімає адмінів
 });
+
+// Ролі, які суперадмін може призначити іншим (суперадміна призначити не можна)
+const ASSIGNABLE_ROLES = Object.freeze([Role.USER, Role.ADMIN]);
 
 const NICKNAME_MIN = 3;
 const NICKNAME_MAX = 30;
@@ -52,8 +56,23 @@ class User {
     return new User({ nickname, login, email, passwordHash, birthDate, role: Role.USER });
   }
 
+  // Суперадмін має всі права адміна
   isAdmin() {
-    return this.role === Role.ADMIN;
+    return this.role === Role.ADMIN || this.role === Role.SUPERADMIN;
+  }
+
+  isSuperAdmin() {
+    return this.role === Role.SUPERADMIN;
+  }
+
+  // Призначити роль (user / admin) може лише суперадмін. Інваріанти:
+  // не можна змінити власну роль, роль іншого суперадміна чи призначити суперадміна.
+  assignRole(actor, role) {
+    if (!actor || !actor.isSuperAdmin()) throw new Error('Призначати ролі може лише суперадмін'); // 403
+    if (actor.id === this.id) throw new Error('Не можна змінити власну роль');
+    if (this.isSuperAdmin()) throw new Error('Роль суперадміна змінити не можна');
+    if (!ASSIGNABLE_ROLES.includes(role)) throw new Error('Можна призначити лише user або admin');
+    this.role = role;
   }
 
   // Публікувати, коментувати й скаржитися може лише незаблокований користувач
@@ -93,6 +112,7 @@ class PasswordResetToken {
 }
 
 module.exports = {
+  ASSIGNABLE_ROLES,
   User, Role, PasswordResetToken,
   NICKNAME_MIN, NICKNAME_MAX, LOGIN_MIN, LOGIN_MAX, EMAIL_MAX, LOGIN_PATTERN, EMAIL_PATTERN,
 };

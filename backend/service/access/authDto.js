@@ -73,6 +73,26 @@ function validate(body, rules, now) {
 }
 
 const validateRegister = (body, now = new Date()) => validate(body, REGISTER_RULES, now);
+
+// PATCH /users/me: можна змінити нікнейм і пошту (логін і роль — ні); потрібне хоча б одне поле
+function validateProfileUpdate(body) {
+  if (!isObject(body)) return [{ field: 'body', code: 'INVALID_BODY', message: 'Тіло запиту має бути JSON-об\'єктом' }];
+  const rules = { nickname: REGISTER_RULES.nickname, email: REGISTER_RULES.email };
+  const present = Object.fromEntries(Object.entries(rules).filter(([field]) => field in body));
+  const errors = Object.keys(present).length
+    ? validate(body, present)
+    : [{ field: 'body', code: 'EMPTY_UPDATE', message: 'Передайте nickname або email' }];
+  for (const field of Object.keys(body)) {
+    if (!(field in rules) && !errors.some((e) => e.field === field)) errors.push({ field, code: 'UNKNOWN_FIELD', message: 'Змінити можна лише nickname і email' });
+  }
+  return errors;
+}
+
+// POST /users/me/password
+const validatePasswordChange = (body) => validate(body, {
+  currentPassword: (v) => (isNonEmptyString(v) ? null : ['PASSWORD_REQUIRED', 'Вкажіть поточний пароль']),
+  newPassword: checkPassword,
+});
 const validateLogin = (body) => validate(body, LOGIN_RULES);
 
 // User (domain) → UserResponse. passwordHash і isBlocked назовні не віддаються.
@@ -88,4 +108,6 @@ function toUserResponse(u) {
   };
 }
 
-module.exports = { validateRegister, validateLogin, parseDate, toUserResponse, PASSWORD_MIN };
+module.exports = {
+  validateRegister, validateLogin, validateProfileUpdate, validatePasswordChange, parseDate, toUserResponse, PASSWORD_MIN,
+};

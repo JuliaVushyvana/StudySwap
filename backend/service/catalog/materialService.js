@@ -8,7 +8,15 @@ const PAGE_SIZE = 20;
 const CATALOG_RETRY_AFTER = 5;
 
 // Залежності передаються ззовні, щоб у тестах підставити фейки замість БД і сховища
-function createMaterialService({ materialRepository, storageService, idempotencyService, now = () => new Date(), logger = console }) {
+function createMaterialService({ materialRepository, storageService, idempotencyService, accessPolicy, userDirectory = null, now = () => new Date(), logger = console }) {
+  // Автор показується з актуальним нікнеймом (якщо його змінили в профілі). Ім'я питаємо в модуля access
+  // через його публічний сервіс (userDirectory = accessService); збережена копія — запасний варіант.
+  const respond = (m) => {
+    const dto = toResponse(m);
+    const current = userDirectory ? userDirectory.nicknameOf(m.authorId) : null;
+    return current ? { ...dto, authorNickname: current } : dto;
+  };
+
   // Остання успішно прочитана копія каталогу: з неї працює пошук у degraded mode, коли БД недоступна
   let catalogSnapshot = null;
 
@@ -31,6 +39,11 @@ function createMaterialService({ materialRepository, storageService, idempotency
     return material;
   };
 
+  // Три рівні доступу (публічний інтерфейс модуля access): гість → 401 (потрібен вхід), бракує прав → 403
+  const { Permission, can, canManageMaterial } = accessPolicy;
+  const requirePermission = (user, permission) => {
+    if (!can(user, permission)) throw new UnauthorizedError();
+  };
   const requireUser = (user) => {
     if (!user || !user.canPublish()) throw new UnauthorizedError();
   };
@@ -56,7 +69,7 @@ function createMaterialService({ materialRepository, storageService, idempotency
       file, authorId: user.id, authorNickname: user.nickname, createdAt: now(),
     });
     material.id = materialRepository.insert(material);
-    return toResponse(material);
+    return respond(material);
   };
 
   return {
@@ -68,36 +81,48 @@ function createMaterialService({ materialRepository, storageService, idempotency
       const catalog = new Catalog();
       catalog.materials = materials;
       const found = catalog.search(filters, sort);
-      const items = found.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(toResponse);
+      const items = found.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(respond);
       return { items, total: found.length, page, degraded };
     },
 
-    get(rawId) {
-      return toResponse(findPublished(rawId));
+    // «Мої матеріали» в профілі: лише власні опубліковані, спочатку нові
+    listMine(user) {
+      requirePermission(user, Permission.MATERIAL_CREATE);
+      const items = materialRepository.findPublished()
+        .filter((m) => m.authorId === user.id)
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .map(respond);
+      return { items, total: items.length };
+    },
+
+    // Відкрити матеріал можуть лише зареєстровані: гість бачить тільки каталог (list)
+    get(user, rawId) {
+      requirePermission(user, Permission.MATERIAL_READ);
+      return respond(findPublished(rawId));
     },
 
     // Повтор із тим самим idempotencyKey повертає вже створений матеріал, а не новий
     create(user, body, idempotencyKey) {
-      requireUser(user);
+      requirePermission(user, Permission.MATERIAL_CREATE);
       return idempotencyService.run({ userId: user.id, key: idempotencyKey, payload: body }, () => createMaterial(user, body));
     },
 
     update(user, rawId, body) {
       requireUser(user);
       const material = findPublished(rawId);
-      if (!material.canBeEditedBy(user)) throw new ForbiddenError();
+      if (!canManageMaterial(user, material, 'update')) throw new ForbiddenError();
       const errors = validateUpdate(body);
       if (errors.length) throw new ValidationError(errors);
 
       material.update(body, user, now());
       materialRepository.update(material);
-      return toResponse(material);
+      return respond(material);
     },
 
     remove(user, rawId) {
       requireUser(user);
       const material = findPublished(rawId);
-      if (!material.canBeDeletedBy(user)) throw new ForbiddenError();
+      if (!canManageMaterial(user, material, 'delete')) throw new ForbiddenError();
 
       material.delete(user);
       material.updatedAt = now();

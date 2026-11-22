@@ -33,6 +33,13 @@ function errorHandler(err, req, res, next) {
     if (err.error === 'InternalError') console.error(`[${req.id}]`, err.message);
     return sendError(res, req, STATUS[err.error], err);
   }
+  // Файл більший за загальний ліміт завантаження (express.raw у POST /files)
+  if (err.type === 'entity.too.large') {
+    return sendError(res, req, 400, {
+      error: 'ValidationError', code: 'FILE_TOO_LARGE',
+      details: [{ field: 'file', message: 'Файл завеликий: найбільше 100 МБ (відео), інші формати — менше' }],
+    });
+  }
   // Некоректний JSON у тілі запиту (помилка express.json)
   if (err.type === 'entity.parse.failed') {
     return sendError(res, req, 400, {

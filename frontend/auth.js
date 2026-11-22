@@ -5,7 +5,9 @@
   'use strict';
 
   const API_URL = 'http://localhost:3000'; // той самий, що й в app.js
-  const HOME = 'index.html';
+  // Куди повернутися після входу: ?next=material.html?id=5 (лише наші сторінки, без чужих адрес)
+  const next = new URLSearchParams(window.location.search).get('next') || '';
+  const HOME = /^[a-z]+\.html(\?[\w=&%.-]*)?$/i.test(next) ? next : 'index.html';
   const RETRY = { retries: 2, baseDelayMs: 300, timeoutMs: 3500, jitter: true };
 
   const { fetchWithResilience, readError } = window.StudyHttp;

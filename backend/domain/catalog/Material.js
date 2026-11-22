@@ -1,6 +1,7 @@
 // Піддомен «Каталог матеріалів» (основний)
 // Сутності: Material, MaterialFile, MaterialType + Catalog (пошук і фільтри)
 
+
 const MaterialType = Object.freeze([
   'конспект', 'лекція', 'практична', 'лабораторна', 'презентація',
   'відео', 'аудіо', 'курсова', 'дипломна', 'магістерська',
@@ -77,9 +78,10 @@ class Material {
     return this.status === MaterialStatus.PUBLISHED;
   }
 
-  // Автор змінює й видаляє свій матеріал, адмін — будь-який
+  // Автор змінює й видаляє свій матеріал, адмін — будь-який.
+  // Інваріант домену; ту саму умову сервіс перевіряє через accessPolicy (матриця прав модуля access)
   canBeEditedBy(user) {
-    return user.isAdmin() || user.id === this.authorId;
+    return Boolean(user) && (user.isAdmin() || user.id === this.authorId);
   }
 
   canBeDeletedBy(user) {

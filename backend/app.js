@@ -5,12 +5,14 @@ const cors = require('cors');
 
 const { createUserRepository } = require('./service/access/userRepository');
 const { createRevokedTokenRepository } = require('./service/access/revokedTokenRepository');
-const { createAccessService } = require('./service/access/accessService');
+const { createAccessService, accessPolicy } = require('./service/access/accessService');
 const { createIdentityService } = require('./service/access/identityService');
 const { createTokenService } = require('./service/access/tokenService');
 const { createPasswordHasher } = require('./service/access/passwordHasher');
 const { createFileRepository } = require('./service/storage/fileRepository');
 const { createStorageService } = require('./service/storage/storageService');
+const { createFileStore } = require('./service/storage/fileStore');
+const { createFilesRouter } = require('./api/storage/filesRouter');
 const { createMaterialRepository } = require('./service/catalog/materialRepository');
 const { createMaterialService } = require('./service/catalog/materialService');
 const { createIdempotencyRepository } = require('./service/idempotency/idempotencyRepository');
@@ -24,6 +26,9 @@ const { createRateLimiter } = require('./api/middleware/rateLimit');
 const { requestTimeout } = require('./api/middleware/timeout');
 const { createFaultInjection } = require('./api/middleware/faultInjection');
 const { createAuthRouter } = require('./api/access/authRouter');
+const { createUsersRouter } = require('./api/access/usersRouter');
+const { createProfileService } = require('./service/access/profileService');
+const { createRoleService } = require('./service/access/roleService');
 const { createMaterialsRouter } = require('./api/catalog/materialsRouter');
 const { createHealthRouter } = require('./api/health/healthRouter');
 const { seed } = require('./seed');
@@ -43,9 +48,11 @@ function createApp(db, config = defaultConfig) {
   const passwordHasher = createPasswordHasher({ rounds: config.bcryptRounds });
   const accessService = createAccessService({ userRepository, tokenService });
   const identityService = createIdentityService({ userRepository, passwordHasher, tokenService });
-  const storageService = createStorageService({ fileRepository });
+  const profileService = createProfileService({ userRepository, passwordHasher });
+  const roleService = createRoleService({ userRepository });
+  const storageService = createStorageService({ fileRepository, accessPolicy, fileStore: createFileStore(config.filesDir || defaultConfig.filesDir) });
   const idempotencyService = createIdempotencyService({ idempotencyRepository });
-  const materialService = createMaterialService({ materialRepository, storageService, idempotencyService });
+  const materialService = createMaterialService({ materialRepository, storageService, idempotencyService, accessPolicy, userDirectory: accessService });
   const healthService = createHealthService({ probes: { database: databaseProbe(db) } });
 
   const app = express();
@@ -64,7 +71,9 @@ function createApp(db, config = defaultConfig) {
   app.use(authenticate(accessService));
 
   app.use('/auth', createAuthRouter({ identityService }));
+  app.use('/users', createUsersRouter({ profileService, roleService, materialService }));
   app.use('/materials', createMaterialsRouter({ materialService }));
+  app.use('/files', createFilesRouter({ storageService }));
 
   app.use(notFound);
   app.use(errorHandler);

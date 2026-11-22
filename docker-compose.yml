@@ -24,6 +24,8 @@ services:
       PORT: "3000"
       # API працює на SQLite; файл бази лежить у томі api-data і переживає docker compose down
       DB_FILE: /app/data/studyswap.db
+      # Завантажені файли матеріалів — у тому ж томі, теж переживають docker compose down
+      FILES_DIR: /app/data/files
       # Ключ підпису JWT: задати свій у .env (JWT_SECRET=...); значення за замовчуванням — лише для навчального запуску
       JWT_SECRET: ${JWT_SECRET:-studyswap-docker-secret-change-me}
     volumes:

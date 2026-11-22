@@ -42,6 +42,9 @@ coverage/
 # Local database
 *.db
 
+# Uploaded material files (backend/uploads)
+uploads/
+
 # Editors and OS
 .vscode/
 .idea/

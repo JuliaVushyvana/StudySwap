@@ -60,6 +60,21 @@ function createUserRepository(db) {
       return findOne('SELECT * FROM users WHERE email = ? COLLATE NOCASE', email);
     },
 
+    // Список для керування ролями: пошук за нікнеймом, логіном або поштою
+    search(query = '', limit = 50) {
+      const like = `%${query}%`;
+      return db.prepare(`
+        SELECT * FROM users
+        WHERE is_blocked = 0 AND (nickname LIKE ? OR login LIKE ? OR email LIKE ?)
+        ORDER BY CASE role WHEN 'superadmin' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END, nickname COLLATE NOCASE
+        LIMIT ?
+      `).all(like, like, like, limit).map(toDomain);
+    },
+
+    findByRole(role) {
+      return findOne('SELECT * FROM users WHERE role = ? LIMIT 1', role);
+    },
+
     findByNickname(nickname) {
       return findOne('SELECT * FROM users WHERE nickname = ? COLLATE NOCASE', nickname);
     },
@@ -73,6 +88,18 @@ function createUserRepository(db) {
         `).run(user.nickname, user.login, user.email, user.passwordHash,
           user.birthDate.toISOString().slice(0, 10), user.avatarUrl, user.role, user.isBlocked ? 1 : 0);
         return Number(lastInsertRowid);
+      } catch (err) {
+        const column = err.code === 'SQLITE_CONSTRAINT_UNIQUE' && /users\.(\w+)/.exec(err.message);
+        if (column && CONFLICT_CODES[column[1]]) throw new ConflictError(CONFLICT_CODES[column[1]]);
+        throw err;
+      }
+    },
+
+    // Зміни профілю й пароля. Кидає ConflictError, якщо новий nickname чи email уже зайнятий
+    update(user) {
+      try {
+        db.prepare('UPDATE users SET nickname = ?, email = ?, password_hash = ?, avatar_url = ?, role = ? WHERE id = ?')
+          .run(user.nickname, user.email, user.passwordHash, user.avatarUrl, user.role, user.id);
       } catch (err) {
         const column = err.code === 'SQLITE_CONSTRAINT_UNIQUE' && /users\.(\w+)/.exec(err.message);
         if (column && CONFLICT_CODES[column[1]]) throw new ConflictError(CONFLICT_CODES[column[1]]);
