@@ -48,8 +48,7 @@
     <!-- Гість: додавати не можна, пропонуємо увійти -->
     <section class="card card-narrow locked" id="lockedCard" hidden>
       <div class="locked-icon" aria-hidden="true">🔒</div>
-      <h2 class="title-lg">Додавати матеріали можуть зареєстровані</h2>
-      <p class="hint">Увійдіть або створіть акаунт — це хвилина. Після входу ви повернетесь сюди.</p>
+      <h2 class="title-lg">Щоб додати матеріал, увійдіть в акаунт або зареєструйтесь</h2>
       <div class="locked-actions">
         <a id="lockedLogin" href="auth.html#login" class="btn btn-primary">Увійти</a>
         <a href="auth.html#register" class="btn btn-outline">Реєстрація</a>
@@ -70,9 +69,9 @@
         </label>
 
         <div class="group">
-          <div class="group-head two"><span>Універ</span><span>Курс</span></div>
+          <div class="group-head two"><span>Заклад освіти</span><span>Курс</span></div>
           <div class="group-body two">
-            <input name="university" id="universityInput" placeholder="Оберіть або введіть" aria-label="Університет" required>
+            <input name="university" id="universityInput" placeholder="Оберіть або введіть" aria-label="Заклад освіти" required>
             <input id="courseInput" value="3 курс" aria-label="Курс" readonly>
             <input type="hidden" name="course" id="courseValue" value="3">
           </div>
@@ -102,7 +101,7 @@
             <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
           </span>
           <span class="dz-title" id="dzTitle">Перетягни файл сюди або <u>обери на пристрої</u></span>
-          <span class="dz-hint" id="dzHint">PDF, Word, TXT, PowerPoint, ZIP — до 20–50 МБ · аудіо до 30 МБ · відео до 100 МБ</span>
+          <span class="dz-hint" id="dzHint">PDF, Word, TXT, PowerPoint, ZIP до 20–50 МБ · аудіо до 30 МБ · відео до 100 МБ</span>
         </label>
 
 

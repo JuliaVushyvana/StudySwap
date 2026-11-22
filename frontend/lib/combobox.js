@@ -2,13 +2,14 @@
 // а якщо такого варіанта немає — пропонує «+ Новий …: «текст»».
 // Використання: StudyCombobox.attach(inputElement, { options: [...], newLabel: 'Новий предмет' })
 // strict: true — лише вибір зі списку (без введення й без «+ Новий»), порядок варіантів зберігається.
+// otherLabel — пункт «Інше» в кінці списку: очищає поле, щоб вписати свій варіант (підказка otherPlaceholder).
 
 (function (global) {
   'use strict';
 
   const norm = (s) => s.trim().toLocaleLowerCase('uk');
 
-  function attach(input, { options = [], newLabel = 'Додати', strict = false, onSelect = null } = {}) {
+  function attach(input, { options = [], newLabel = 'Додати', strict = false, onSelect = null, otherLabel = null, otherPlaceholder = null } = {}) {
     let items = [];
     let active = -1;
     let values = [];
@@ -55,13 +56,16 @@
       const exact = values.some((v) => norm(v) === q);
       items = matches.map((v) => ({ value: v, isNew: false }));
       if (q && !exact) items.push({ value: query.trim(), isNew: true });
+      if (otherLabel && !strict && !q) items.push({ value: '', isOther: true });
 
       list.innerHTML = '';
       items.forEach((item, i) => {
         const li = document.createElement('li');
         li.setAttribute('role', 'option');
-        li.className = `combo-option${item.isNew ? ' combo-new' : ''}${i === active ? ' active' : ''}`;
-        if (item.isNew) {
+        li.className = `combo-option${item.isNew ? ' combo-new' : ''}${item.isOther ? ' combo-other' : ''}${i === active ? ' active' : ''}`;
+        if (item.isOther) {
+          li.textContent = `✎ ${otherLabel}`;
+        } else if (item.isNew) {
           li.append(`+ ${newLabel}: «`, Object.assign(document.createElement('b'), { textContent: item.value }), '»');
         } else {
           li.appendChild(labelNode(item.value, query));
@@ -85,6 +89,14 @@
     function choose(i) {
       const item = items[i];
       if (!item) return;
+      if (item.isOther) {
+        // «Інше»: порожнє поле з підказкою, список закривається — далі людина просто пише свій варіант
+        input.value = '';
+        if (otherPlaceholder) input.placeholder = otherPlaceholder;
+        open(false);
+        input.focus();
+        return;
+      }
       input.value = item.value;
       if (item.isNew) setOptions([...values, item.value]); // новий варіант одразу з'являється у списку
       open(false);

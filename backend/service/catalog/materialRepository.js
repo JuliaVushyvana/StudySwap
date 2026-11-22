@@ -55,9 +55,11 @@ function createMaterialRepository(db) {
     update(m) {
       db.prepare(`
         UPDATE materials
-        SET title = ?, description = ?, subject = ?, university = ?, course = ?, type = ?, status = ?, updated_at = ?
+        SET title = ?, description = ?, subject = ?, university = ?, course = ?, type = ?, status = ?, updated_at = ?,
+            file_name = ?, file_size_bytes = ?, file_url = ?
         WHERE id = ?
-      `).run(m.title, m.description, m.subject, m.university, m.course, m.type, m.status, m.updatedAt.toISOString(), m.id);
+      `).run(m.title, m.description, m.subject, m.university, m.course, m.type, m.status, m.updatedAt.toISOString(),
+        m.file.fileName, m.file.sizeBytes, m.file.url, m.id);
     },
   };
 }

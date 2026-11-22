@@ -48,20 +48,24 @@ function createMaterialService({ materialRepository, storageService, idempotency
     if (!user || !user.canPublish()) throw new UnauthorizedError();
   };
 
+  // fileId (файл уже завантажено через POST /files) → MaterialFile з перевіркою формату й розміру
+  const materialFileFrom = (fileId) => {
+    const stored = storageService.getFile(fileId);
+    if (!stored) {
+      throw new ValidationError([{ field: 'fileId', code: 'FILE_REQUIRED', message: 'Файл із таким fileId не завантажено' }]);
+    }
+    try {
+      return new MaterialFile({ fileName: stored.fileName, sizeBytes: stored.sizeBytes, url: stored.url });
+    } catch (e) {
+      throw new ValidationError([{ field: 'fileId', code: 'INVALID_FILE', message: e.message }]);
+    }
+  };
+
   const createMaterial = (user, body) => {
     const errors = validateCreate(body);
     if (errors.length) throw new ValidationError(errors);
 
-    const stored = storageService.getFile(body.fileId);
-    if (!stored) {
-      throw new ValidationError([{ field: 'fileId', code: 'FILE_REQUIRED', message: 'Файл із таким fileId не завантажено' }]);
-    }
-    let file;
-    try {
-      file = new MaterialFile({ fileName: stored.fileName, sizeBytes: stored.sizeBytes, url: stored.url });
-    } catch (e) {
-      throw new ValidationError([{ field: 'fileId', code: 'INVALID_FILE', message: e.message }]);
-    }
+    const file = materialFileFrom(body.fileId);
 
     const material = new Material({
       title: body.title, description: body.description, subject: body.subject,
@@ -95,7 +99,7 @@ function createMaterialService({ materialRepository, storageService, idempotency
       return { items, total: items.length };
     },
 
-    // Відкрити матеріал можуть лише зареєстровані: гість бачить тільки каталог (list)
+    // Сторінку матеріалу бачать усі, зокрема гість; сам файл — лише зареєстровані (storageService)
     get(user, rawId) {
       requirePermission(user, Permission.MATERIAL_READ);
       return respond(findPublished(rawId));
@@ -114,7 +118,11 @@ function createMaterialService({ materialRepository, storageService, idempotency
       const errors = validateUpdate(body);
       if (errors.length) throw new ValidationError(errors);
 
-      material.update(body, user, now());
+      // Нове значення fileId — заміна файлу; решта полів — звичайне оновлення
+      const { fileId, ...fields } = body;
+      const file = fileId !== undefined ? materialFileFrom(fileId) : null;
+      if (Object.keys(fields).length) material.update(fields, user, now());
+      if (file) material.replaceFile(file, user, now());
       materialRepository.update(material);
       return respond(material);
     },

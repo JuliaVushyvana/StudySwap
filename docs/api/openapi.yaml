@@ -248,10 +248,8 @@ paths:
     get:
       tags: [Materials]
       summary: Деталі матеріалу
-      description: Відкрити матеріал можуть лише зареєстровані (користувач або адмін). Гість бачить тільки каталог (GET /materials).
+      description: Сторінку матеріалу бачать усі, зокрема гість. Сам файл (GET /files/{id}) — лише зареєстровані.
       operationId: getMaterial
-      security:
-        - bearerAuth: []
       responses:
         '200':
           description: Матеріал знайдено
@@ -259,8 +257,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MaterialResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
         '429':
@@ -538,8 +534,8 @@ paths:
   /files/{id}:
     get:
       tags: [Files]
-      summary: Отримати файл
-      description: Лише для зареєстрованих, як і сторінка матеріалу. Відповідь — файл з оригінальною назвою (Content-Disposition).
+      summary: Скачати файл
+      description: Перегляд і скачування файлу — лише для зареєстрованих (гість отримує 401). Відповідь — файл з оригінальною назвою (Content-Disposition).
       operationId: downloadFile
       security:
         - bearerAuth: []
@@ -559,6 +555,40 @@ paths:
                 format: binary
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /files/{id}/preview:
+    get:
+      tags: [Files]
+      summary: Переглянути документ на сайті
+      description: |
+        PDF, Word (.docx) і TXT для перегляду прямо на сторінці (Content-Disposition inline, без кешу).
+        Доступно всім, зокрема гостю. Скачати файл (GET /files/{id}) можуть лише зареєстровані.
+      operationId: previewFile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Вміст документа
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+              schema:
+                type: string
+                format: binary
+            text/plain:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -715,7 +745,7 @@ components:
 
     MaterialUpdateRequest:
       type: object
-      description: DTO для оновлення (тіло PATCH /materials/{id}). Усі поля необов'язкові, але потрібне хоча б одне. Файл змінити не можна.
+      description: DTO для оновлення (тіло PATCH /materials/{id}). Усі поля необов'язкові, але потрібне хоча б одне. Новий fileId замінює файл (спершу POST /files).
       minProperties: 1
       additionalProperties: false
       properties:
@@ -738,6 +768,9 @@ components:
           maximum: 6
         type:
           $ref: '#/components/schemas/MaterialType'
+        fileId:
+          type: string
+          description: Замінити файл на інший, уже завантажений через POST /files
       example:
         title: Нормалізація БД (оновлено)
         course: 3

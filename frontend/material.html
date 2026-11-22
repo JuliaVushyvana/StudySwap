@@ -69,7 +69,13 @@
               <p id="mFileName" class="hint"></p>
             </div>
           </div>
-          <button id="mDownload" class="btn btn-primary btn-block" data-api>Завантажити файл</button>
+          <!-- Переглянути може кожен (PDF, Word, TXT); скачати — лише після входу -->
+          <div class="file-actions">
+            <button id="mPreview" class="btn btn-primary" data-api>Переглянути</button>
+            <button id="mDownload" class="btn btn-outline" data-api>Скачати</button>
+          </div>
+          <p id="mGuestNote" class="hint guest-note" hidden>🔒 Скачати файл можуть зареєстровані:
+            <a id="mLogin" href="auth.html#login">увійдіть</a> або <a id="mRegister" href="auth.html#register">зареєструйтесь</a>.</p>
           <p id="mFileNote" class="hint file-note"></p>
           <dl class="material-facts">
             <dt>Автор</dt><dd id="mAuthor"></dd>
@@ -81,6 +87,15 @@
       </div>
     </article>
 
+    <!-- Перегляд файлу прямо на сторінці (PDF, відео, аудіо, текст, зображення) -->
+    <section class="card preview-card" id="previewCard" hidden>
+      <div class="card-title-row">
+        <h2 id="previewTitle">Перегляд</h2>
+        <button id="previewClose" class="btn btn-outline btn-sm">Закрити</button>
+      </div>
+      <div id="previewBody" class="preview-body"></div>
+    </section>
+
   </main>
 
   <script src="lib/http.js"></script>
@@ -88,6 +103,8 @@
   <script src="lib/degraded.js"></script>
   <script src="lib/session.js"></script>
   <script src="lib/permissions.js"></script>
+  <script src="vendor/jszip.min.js"></script>
+  <script src="lib/docx-viewer.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

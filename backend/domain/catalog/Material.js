@@ -88,7 +88,7 @@ class Material {
     return this.canBeEditedBy(user);
   }
 
-  // Часткове оновлення; файл і автора змінити не можна
+  // Часткове оновлення полів; автора змінити не можна. Файл замінюється окремо — replaceFile()
   update(changes, user, now = new Date()) {
     if (!this.canBeEditedBy(user)) throw new Error('Недостатньо прав'); // 403
     if (!this.isPublished()) throw new Error('Матеріал видалено'); // 404
@@ -99,6 +99,15 @@ class Material {
     };
     assertMaterialFields(next);
     Object.assign(this, next);
+    this.updatedAt = now;
+  }
+
+  // Заміна файлу автором або адміном (новий файл уже перевірено: MaterialFile)
+  replaceFile(file, user, now = new Date()) {
+    if (!this.canBeEditedBy(user)) throw new Error('Недостатньо прав'); // 403
+    if (!this.isPublished()) throw new Error('Матеріал видалено'); // 404
+    if (!(file instanceof MaterialFile)) throw new Error('Потрібен файл матеріалу');
+    this.file = file;
     this.updatedAt = now;
   }
 

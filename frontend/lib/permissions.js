@@ -8,6 +8,9 @@
   const P = Object.freeze({
     MATERIAL_LIST: 'material:list',
     MATERIAL_READ: 'material:read',
+    FILE_PREVIEW: 'file:preview',
+    FILE_READ: 'file:read',
+    COMMENT_CREATE: 'comment:create',
     MATERIAL_CREATE: 'material:create',
     MATERIAL_UPDATE_OWN: 'material:update:own',
     MATERIAL_DELETE_OWN: 'material:delete:own',
@@ -16,8 +19,9 @@
     USER_ROLE_MANAGE: 'user:role:manage',
   });
 
-  const GUEST = [P.MATERIAL_LIST];
-  const USER = [...GUEST, P.MATERIAL_READ, P.MATERIAL_CREATE, P.MATERIAL_UPDATE_OWN, P.MATERIAL_DELETE_OWN];
+  // Гість бачить каталог, сторінку матеріалу й перегляд документа, але не скачує файл і не коментує
+  const GUEST = [P.MATERIAL_LIST, P.MATERIAL_READ, P.FILE_PREVIEW];
+  const USER = [...GUEST, P.FILE_READ, P.COMMENT_CREATE, P.MATERIAL_CREATE, P.MATERIAL_UPDATE_OWN, P.MATERIAL_DELETE_OWN];
   const ADMIN = [...USER, P.MATERIAL_UPDATE_ANY, P.MATERIAL_DELETE_ANY];
   const SUPERADMIN = [...ADMIN, P.USER_ROLE_MANAGE];
   const ROLES = { guest: GUEST, user: USER, admin: ADMIN, superadmin: SUPERADMIN };

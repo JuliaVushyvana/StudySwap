@@ -121,7 +121,18 @@ test('update: чужий матеріал → ForbiddenError, порожнє т�
 
   assert.throws(() => service.update(julia, id, { title: 'Моє' }), ForbiddenError);
   assert.throws(() => service.update(anna, id, {}), { code: 'EMPTY_UPDATE' });
-  assert.throws(() => service.update(anna, id, { fileId: 'f-8c1e2b' }), { code: 'UNKNOWN_FIELD' });
+  assert.throws(() => service.update(anna, id, { authorId: 2 }), { code: 'UNKNOWN_FIELD' });
+});
+
+test('update: автор замінює файл на інший завантажений; неіснуючий fileId → FILE_REQUIRED', () => {
+  const service = setup();
+  const { id } = service.create(anna, validBody(), key());
+
+  const updated = service.update(anna, id, { fileId: 'f-8c1e2b', title: 'Нова версія' });
+  assert.equal(updated.title, 'Нова версія');
+  assert.equal(updated.file.fileName, 'normalization.pdf');
+  assert.throws(() => service.update(anna, id, { fileId: 'nope' }), { code: 'FILE_REQUIRED' });
+  assert.throws(() => service.update(julia, id, { fileId: 'f-8c1e2b' }), ForbiddenError);
 });
 
 test('remove: адмін видаляє чужий матеріал, після цього він 404', () => {
@@ -189,20 +200,22 @@ test('list: БД недоступна і копії ще немає → ServiceU
 
 // ---------- Три рівні доступу ----------
 
-test('get: гість не відкриває матеріал → 401, а каталог (list) бачить', () => {
+test('get: гість бачить каталог і сторінку матеріалу, але не додає матеріал', () => {
   const service = setup();
   const { id } = service.create(anna, validBody(), key());
 
-  assert.throws(() => service.get(null, id), UnauthorizedError);
+  assert.equal(service.get(null, id).id, id);
   assert.equal(service.list({}).total, 1);
+  assert.throws(() => service.create(null, validBody(), key()), UnauthorizedError);
 });
 
-test('get: заблокований користувач → 401, як гість', () => {
+test('заблокований користувач має права гостя: бачить матеріал, але не додає', () => {
   const service = setup();
   const { id } = service.create(anna, validBody(), key());
   const blocked = Object.assign(Object.create(Object.getPrototypeOf(julia)), julia, { isBlocked: true });
 
-  assert.throws(() => service.get(blocked, id), UnauthorizedError);
+  assert.equal(service.get(blocked, id).id, id);
+  assert.throws(() => service.create(blocked, validBody(), key()), UnauthorizedError);
 });
 
 test('user: відкриває чужий матеріал, але не змінює і не видаляє його → 403', () => {

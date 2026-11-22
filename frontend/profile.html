@@ -128,7 +128,7 @@
     <section class="card admin-next" id="adminNext" hidden>
       <h2>Модерація</h2>
       <p class="hint">Скарги, блокування порушників і керування коментарями з'являться разом із модулем модерації
-        (у roadmap — етап «Пізніше»). Зараз адмін може змінювати й видаляти будь-які матеріали в таблиці вище.</p>
+        (у roadmap це етап «Пізніше»). Зараз адмін може змінювати й видаляти будь-які матеріали в таблиці вище.</p>
     </section>
   </main>
 
@@ -138,6 +138,7 @@
       <h2>Редагувати матеріал</h2>
       <label class="field">Назва <input name="title" maxlength="200" required></label>
       <label class="field">Предмет <input name="subject" required></label>
+      <label class="field">Заклад освіти <input name="university" required></label>
       <div class="two">
         <label class="field">Курс
           <select name="course">
@@ -154,6 +155,15 @@
         </label>
       </div>
       <label class="field">Опис <textarea name="description" rows="4" maxlength="1000"></textarea></label>
+      <div class="field">Файл
+        <div class="edit-file">
+          <span id="editFileName" class="edit-file-name"></span>
+          <label class="btn btn-outline btn-sm">Замінити файл
+            <input type="file" id="editFileInput" class="visually-hidden" accept=".pdf,.doc,.docx,.txt,.ppt,.pptx,.zip,.mp3,.wav,.mp4">
+          </label>
+        </div>
+        <span class="field-note" id="editFileNote">Залиште як є або оберіть новий файл</span>
+      </div>
       <p id="editResult" class="result"></p>
       <div class="dialog-actions">
         <button type="button" id="editCancel" class="btn btn-outline">Скасувати</button>

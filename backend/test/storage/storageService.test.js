@@ -54,3 +54,19 @@ test('download: зареєстрований отримує файл, гість
   assert.throws(() => service.download(julia, 'nope'), NotFoundError);
   assert.throws(() => service.download(julia, '../etc/passwd'), NotFoundError);
 });
+
+test('preview: гість переглядає pdf / docx / txt, але не скачує', () => {
+  const { service } = setup();
+  const pdf = upload(service, julia, 'конспект.pdf');
+  const docx = service.upload(julia, { fileName: 'лаба.docx', mimeType: 'application/octet-stream', buffer: Buffer.alloc(5, 1) });
+
+  assert.equal(service.preview(null, pdf.id).mimeType, 'application/pdf');
+  assert.match(service.preview(null, docx.id).mimeType, /wordprocessingml/);
+  assert.throws(() => service.download(null, pdf.id), UnauthorizedError);
+});
+
+test('preview: відео й архіви не переглядаються на сайті → PREVIEW_NOT_SUPPORTED', () => {
+  const { service } = setup();
+  const zip = upload(service, julia, 'архів.zip');
+  assert.throws(() => service.preview(julia, zip.id), (e) => e.code === 'PREVIEW_NOT_SUPPORTED');
+});
