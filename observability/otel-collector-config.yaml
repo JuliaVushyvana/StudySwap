@@ -1,0 +1,100 @@
+# Конфіг колектора стенду observability-demo + приймання метрик і логів studyswap-api по OTLP.
+# Зміни відносно оригіналу позначені коментарем «studyswap-api». Як застосувати — docs/practice8/report.md.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+  filelog:
+    include: [/var/log/demo/*.log]
+    start_at: beginning
+    include_file_name: true
+    include_file_path: true
+    operators:
+      - type: json_parser
+        id: parse-logs
+        parse_to: attributes
+        timestamp:
+          parse_from: attributes.ts
+          layout: '%Y-%m-%dT%H:%M:%S.%fZ'
+processors:
+  # studyswap-api: лейбл service_name на кожній метриці, як у PromQL-прикладах практики
+  transform/service_name:
+    metric_statements:
+      - context: datapoint
+        statements:
+          - set(attributes["service_name"], resource.attributes["service.name"])
+  # studyswap-api: service.name з OTLP-логів стає лейблом service_name у Loki
+  resource/loki_labels:
+    attributes:
+      - action: insert
+        key: loki.resource.labels
+        value: service.name
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 400
+  attributes/loki_labels:
+    actions:
+      - action: insert
+        key: loki.attribute.labels
+        value: service
+  batch:
+    send_batch_size: 512
+    timeout: 5s
+  attributes/log_sanitize:
+    actions:
+      - key: authorization
+        action: delete
+      - key: password
+        action: delete
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 30
+    expected_new_traces_per_sec: 10
+    policies:
+      - name: errors
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      - name: slow-traces
+        type: latency
+        latency:
+          threshold_ms: 400
+      - name: baseline
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: 10
+exporters:
+  # studyswap-api: метрики з OTLP віддаються Prometheus на collector:8889/metrics
+  prometheus:
+    endpoint: 0.0.0.0:8889
+  logging/debug:
+    loglevel: debug
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+  loki:
+    endpoint: http://loki:3100/loki/api/v1/push
+    default_labels_enabled:
+      exporter: true
+      job: true
+      level: true
+    tls:
+      insecure: true
+service:
+  extensions: []
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, tail_sampling]
+      exporters: [otlp/tempo, logging/debug]
+    # studyswap-api: OTLP-метрики → Prometheus
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, transform/service_name, batch]
+      exporters: [prometheus]
+    logs:
+      receivers: [filelog, otlp]
+      processors: [memory_limiter, resource/loki_labels, attributes/loki_labels, attributes/log_sanitize, batch]
+      exporters: [loki]

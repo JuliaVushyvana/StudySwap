@@ -1,0 +1,24 @@
+# prometheus.yml стенду observability-demo + job studyswap-api (метрики з колектора).
+global:
+  scrape_interval: 10s
+  evaluation_interval: 10s
+
+rule_files: []
+
+scrape_configs:
+  - job_name: demo-app
+    metrics_path: /metrics
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['app:3000']
+        labels:
+          service: demo-app
+  - job_name: otel-collector
+    static_configs:
+      - targets: ['collector:8888']
+  # studyswap-api: метрики, які колектор отримав по OTLP; honor_labels — job береться з service.name, а не з назви цього job
+  - job_name: studyswap-api
+    honor_labels: true
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['collector:8889']

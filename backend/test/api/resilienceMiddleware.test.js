@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 
 const { createRateLimiter } = require('../../api/middleware/rateLimit');
 const { requestTimeout } = require('../../api/middleware/timeout');
-const { createFaultInjection } = require('../../api/middleware/faultInjection');
+const { createFaultInjection, createChaos } = require('../../api/middleware/faultInjection');
 const { errorHandler } = require('../../api/middleware/errorHandler');
 const { TooManyRequestsError, ServiceUnavailableError } = require('../../service/errors');
 
@@ -66,12 +66,12 @@ test('timeout: відповідь віддано вчасно → таймер �
   assert.equal(errors.length, 0);
 });
 
-test('faultInjection: залежно від random пропускає, затримує або повертає 503/500', async () => {
+test('chaos: залежно від random пропускає, затримує або повертає 503/500', async () => {
   const sequence = (...values) => { let i = 0; return () => values[i++]; };
   const call = async (random) => {
     let waited = 0;
     let result = 'not-called';
-    const mw = createFaultInjection({ random, wait: async (ms) => { waited = ms; } });
+    const mw = createChaos({ random, wait: async (ms) => { waited = ms; } });
     await mw({}, fakeRes(), (err) => { result = err; });
     return { result, waited };
   };
@@ -82,6 +82,23 @@ test('faultInjection: залежно від random пропускає, затр�
   assert.equal(delayed.waited, 1600);
   assert.equal((await call(sequence(0.9, 0.1, 0.2))).result.code, 'SERVICE_UNAVAILABLE');
   assert.equal((await call(sequence(0.9, 0.1, 0.7))).result.error, 'InternalError');
+});
+
+test('faultInjection: за замовчуванням вимкнений, FAULT_DELAY_MS затримує кожен запит, FAULT_ERROR_RATE дає 500', async () => {
+  const call = async (options, random = () => 0.5) => {
+    let waited = 0;
+    let result = 'not-called';
+    const mw = createFaultInjection({ ...options, random, wait: async (ms) => { waited = ms; } });
+    await mw({}, fakeRes(), (err) => { result = err; });
+    return { result, waited };
+  };
+
+  assert.deepEqual(await call({}, () => 0), { result: undefined, waited: 0 });
+  assert.deepEqual(await call({ delayMs: 300 }), { result: undefined, waited: 300 });
+  assert.equal((await call({ errorRate: 0.3 }, () => 0.5)).result, undefined);
+  const failed = (await call({ errorRate: 0.3 }, () => 0.2)).result;
+  assert.equal(failed.error, 'InternalError');
+  assert.equal(failed.code, 'FAULT_INJECTED');
 });
 
 test('errorHandler: 429 і 503 → ErrorResponse із заголовком Retry-After і requestId', () => {
