@@ -40,7 +40,8 @@ function createApp(db, config = defaultConfig) {
   const fileRepository = createFileRepository(db);
   const materialRepository = createMaterialRepository(db);
   const idempotencyRepository = createIdempotencyRepository(db);
-  seed({ userRepository, fileRepository, materialRepository });
+  const fileStore = createFileStore(config.filesDir || defaultConfig.filesDir);
+  seed({ userRepository, fileRepository, materialRepository, fileStore });
 
   const tokenService = createTokenService({
     secret: config.jwtSecret, ttlSeconds: config.tokenTtlSeconds, revokedTokenRepository,
@@ -50,7 +51,7 @@ function createApp(db, config = defaultConfig) {
   const identityService = createIdentityService({ userRepository, passwordHasher, tokenService });
   const profileService = createProfileService({ userRepository, passwordHasher });
   const roleService = createRoleService({ userRepository });
-  const storageService = createStorageService({ fileRepository, accessPolicy, fileStore: createFileStore(config.filesDir || defaultConfig.filesDir) });
+  const storageService = createStorageService({ fileRepository, accessPolicy, fileStore });
   const idempotencyService = createIdempotencyService({ idempotencyRepository });
   const materialService = createMaterialService({ materialRepository, storageService, idempotencyService, accessPolicy, userDirectory: accessService });
   const healthService = createHealthService({ probes: { database: databaseProbe(db) } });

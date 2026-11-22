@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="2 4 56 56" role="img" aria-label="StudySwap">
+  <!-- Дві картки-конспекти і знак обміну -->
+  <rect x="5" y="9" width="32" height="42" rx="7" fill="#93d0f7" transform="rotate(-8 21 30)"/>
+  <rect x="21" y="13" width="32" height="42" rx="7" fill="#3a63e0" transform="rotate(7 37 34)"/>
+  <circle cx="23" cy="38" r="12" fill="#ffffff"/>
+  <g fill="none" stroke="#172b6b" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M17 34.5h12M25.5 31l3.5 3.5-3.5 3.5"/>
+    <path d="M29 41.5H17M20.5 38L17 41.5l3.5 3.5"/>
+  </g>
+</svg>
