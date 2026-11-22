@@ -17,7 +17,8 @@ function requestTelemetry(req, res, next) {
     const fields = {
       request_id: req.id,
       method: req.method,
-      route: req.route ? req.baseUrl + req.route.path : undefined, // undefined — запит не дійшов до роуту
+      // як http.route у спані: /materials, а не /materials/; undefined — запит не дійшов до роуту
+      route: req.route ? req.baseUrl + (req.route.path === '/' && req.baseUrl ? '' : req.route.path) : undefined,
       path: req.originalUrl.split('?')[0],
       status: res.statusCode,
       duration_ms: Number(process.hrtime.bigint() - started) / 1e6,
