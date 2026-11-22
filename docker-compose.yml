@@ -1,0 +1,46 @@
+# StudySwap однією командою: docker compose up -d --build
+#   web — фронтенд (Nginx):  http://localhost:8080
+#   api — бекенд (Express):  http://localhost:3000
+#   db  — SQLite (перегляд): http://localhost:8081
+
+services:
+  web:
+    build: ./frontend
+    image: studyswap-web:1.0.0
+    container_name: studyswap-web
+    ports:
+      - "8080:80"
+    # Браузер звертається до API за http://localhost:3000 (frontend/app.js), CORS на API увімкнено
+    depends_on:
+      - api
+
+  api:
+    build: ./backend
+    image: studyswap-api:1.0.0
+    container_name: studyswap-api
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: "3000"
+      # API працює на SQLite; файл бази лежить у томі api-data і переживає docker compose down
+      DB_FILE: /app/data/studyswap.db
+    volumes:
+      - api-data:/app/data
+
+  # SQLite — це файл, а не сервер, тому db — веб-переглядач того самого файлу бази з тома api-data
+  db:
+    image: coleifer/sqlite-web:latest
+    container_name: studyswap-db
+    # -r: лише читання, записує в базу тільки API
+    command: ["sqlite_web", "-H", "0.0.0.0", "-x", "-r", "studyswap.db"]
+    ports:
+      - "8081:8080"
+    volumes:
+      - api-data:/data
+    # Стартує, коли API вже створив файл бази й таблиці
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  api-data:

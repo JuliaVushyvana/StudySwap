@@ -7,6 +7,7 @@ const int = (name, fallback) => {
 
 const config = Object.freeze({
   port: int('PORT', 3000),
+  dbFile: process.env.DB_FILE || undefined, // шлях до файлу SQLite; без нього — backend/data.db
   requestTimeoutMs: int('REQUEST_TIMEOUT_MS', 5000),
   rateLimit: { windowMs: int('RATE_LIMIT_WINDOW_MS', 10_000), max: int('RATE_LIMIT_MAX', 50) },
   chaos: process.env.CHAOS === '1', // штучні затримки й збої для перевірки клієнта

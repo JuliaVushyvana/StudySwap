@@ -1,0 +1,10 @@
+# Що НЕ потрапляє в образ при docker build ./frontend
+
+README.md
+.DS_Store
+.vscode
+.idea
+
+# Самі файли Docker
+Dockerfile
+.dockerignore

@@ -2,7 +2,7 @@ const { openDatabase } = require('./db');
 const { createApp } = require('./app');
 const { config } = require('./config');
 
-const server = createApp(openDatabase(), config).listen(config.port, () => {
+const server = createApp(openDatabase(config.dbFile), config).listen(config.port, () => {
   console.log(`Server running on http://localhost:${config.port}${config.chaos ? ' (CHAOS: штучні затримки й збої)' : ''}`);
 });
 
