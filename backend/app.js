@@ -24,7 +24,8 @@ const { authenticate } = require('./api/middleware/auth');
 const { errorHandler, notFound } = require('./api/middleware/errorHandler');
 const { createRateLimiter } = require('./api/middleware/rateLimit');
 const { requestTimeout } = require('./api/middleware/timeout');
-const { createFaultInjection } = require('./api/middleware/faultInjection');
+const { createFaultInjection, createChaos } = require('./api/middleware/faultInjection');
+const { requestTelemetry, appContext } = require('./api/middleware/telemetry');
 const { createAuthRouter } = require('./api/access/authRouter');
 const { createUsersRouter } = require('./api/access/usersRouter');
 const { createProfileService } = require('./service/access/profileService');
@@ -59,6 +60,7 @@ function createApp(db, config = defaultConfig) {
   const app = express();
   // requestId перед cors: X-Request-Id потрапляє й у відповіді на preflight (OPTIONS), які cors завершує сам
   app.use(requestId);
+  app.use(requestTelemetry);
   // Браузер має право надсилати Idempotency-Key і X-Request-Id та читати X-Request-Id і Retry-After
   app.use(cors({ exposedHeaders: ['X-Request-Id', 'Retry-After'] }));
   app.use(requestTimeout(config.requestTimeoutMs));
@@ -67,14 +69,16 @@ function createApp(db, config = defaultConfig) {
   app.use('/health', createHealthRouter({ healthService }));
 
   app.use(createRateLimiter(config.rateLimit));
-  if (config.chaos) app.use(createFaultInjection({}));
+  if (config.chaos) app.use(createChaos({}));
+  const { fault = {} } = config;
+  if (fault.errorRate > 0 || fault.delayMs > 0) app.use(createFaultInjection(fault));
   app.use(express.json());
   app.use(authenticate(accessService));
 
-  app.use('/auth', createAuthRouter({ identityService }));
-  app.use('/users', createUsersRouter({ profileService, roleService, materialService }));
-  app.use('/materials', createMaterialsRouter({ materialService }));
-  app.use('/files', createFilesRouter({ storageService }));
+  app.use('/auth', appContext('identity'), createAuthRouter({ identityService }));
+  app.use('/users', appContext('identity'), createUsersRouter({ profileService, roleService, materialService }));
+  app.use('/materials', appContext('catalog'), createMaterialsRouter({ materialService }));
+  app.use('/files', appContext('storage'), createFilesRouter({ storageService }));
 
   app.use(notFound);
   app.use(errorHandler);

@@ -1,6 +1,7 @@
 // Перетворює будь-яку помилку на ErrorResponse з docs/api/openapi.yaml.
 
 const { AppError } = require('../../service/errors');
+const logger = require('../../logger');
 
 const STATUS = {
   ValidationError: 400,
@@ -25,12 +26,13 @@ function notFound(req, res) {
 function errorHandler(err, req, res, next) {
   // Відповідь уже віддано (наприклад, спрацював таймаут, а обробник упав пізніше): лише логуємо
   if (res.headersSent) {
-    console.error(`[${req.id}] помилка після відправленої відповіді:`, err.message);
+    logger.error(`помилка після відправленої відповіді: ${err.message}`, { request_id: req.id }, req.span);
     return;
   }
   if (err instanceof AppError) {
     if (err.retryAfter) res.set('Retry-After', String(err.retryAfter));
-    if (err.error === 'InternalError') console.error(`[${req.id}]`, err.message);
+    if (err.error === 'InternalError') req.span?.recordException(err);
+    if (err.error === 'InternalError') logger.error(err.message, { request_id: req.id, code: err.code }, req.span);
     return sendError(res, req, STATUS[err.error], err);
   }
   // Файл більший за загальний ліміт завантаження (express.raw у POST /files)
@@ -47,7 +49,8 @@ function errorHandler(err, req, res, next) {
       details: [{ field: 'body', message: 'Тіло запиту не є коректним JSON' }],
     });
   }
-  console.error(`[${req.id}]`, err);
+  req.span?.recordException(err);
+  logger.error(err.message, { request_id: req.id, stack: err.stack }, req.span);
   return sendError(res, req, 500, { error: 'InternalError' });
 }
 

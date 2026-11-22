@@ -125,6 +125,6 @@
 
 ### Для релізів
 
-- Налаштування через env: `REQUEST_TIMEOUT_MS`, `RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_MS`, `CHAOS` (`backend/config.js`) — однаково для локального запуску і Docker.
+- Налаштування через env: `REQUEST_TIMEOUT_MS`, `RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_MS`, `CHAOS`, `FAULT_ERROR_RATE` і `FAULT_DELAY_MS` (Практика 8, `docs/practice8/report.md`) (`backend/config.js`) — однаково для локального запуску і Docker.
 - `GET /health` тепер повертає JSON і `503` у degraded-стані — готовий для Docker healthcheck (тиждень 6) і дашборда (тиждень 8).
 - Лічильники rate limit і snapshot каталогу локальні для процесу: при горизонтальному масштабуванні їх доведеться винести.
