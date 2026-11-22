@@ -5,18 +5,26 @@
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test"
+    "lint": "eslint .",
+    "test": "node --test",
+    "test:coverage": "node -e \"require('fs').mkdirSync('coverage',{recursive:true})\" && node --test --experimental-test-coverage --test-coverage-exclude=\"test/**\" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "engines": {
+    "node": ">=22.13"
+  },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^13.0.3",
     "cors": "^2.8.6",
     "express": "^5.3.0",
     "jsonwebtoken": "^9.0.3"
+  },
+  "devDependencies": {
+    "eslint": "^10.1.0"
   },
   "allowScripts": {
     "better-sqlite3@13.0.3": true

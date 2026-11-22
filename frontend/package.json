@@ -1,0 +1,19 @@
+{
+  "name": "studyswap-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Статичний фронтенд StudySwap: лінт, тести lib/ і збірка в dist/",
+  "license": "ISC",
+  "type": "commonjs",
+  "scripts": {
+    "lint": "eslint .",
+    "test": "node --test",
+    "build": "node scripts/build.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "devDependencies": {
+    "eslint": "^10.1.0"
+  }
+}

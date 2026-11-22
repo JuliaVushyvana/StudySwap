@@ -1,0 +1,77 @@
+# Багаторазовий (reusable) workflow: одна перевірка Node.js-проєкту.
+# Викликається з ci.yml окремо для backend/ і frontend/.
+# Кроки: checkout → setup-node (кеш npm) → npm ci → lint → test (або test:coverage) → build (за потреби) → coverage-артефакт.
+name: CI (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Тека проєкту з package.json і package-lock.json (backend або frontend)
+        required: true
+        type: string
+      node-version:
+        description: Версія Node.js
+        required: false
+        type: string
+        default: '22'
+      coverage:
+        description: Запускати npm run test:coverage і завантажувати звіт як артефакт
+        required: false
+        type: boolean
+        default: false
+      build:
+        description: Запускати npm run build після тестів
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: lint & test
+    runs-on: ubuntu-latest
+    # timeout-minutes не можна задати в job-і, що викликає reusable workflow, тому він тут
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ inputs.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+          cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        if: ${{ !inputs.coverage }}
+        run: npm test
+
+      - name: Test with coverage
+        if: ${{ inputs.coverage }}
+        run: npm run test:coverage
+
+      - name: Build
+        if: ${{ inputs.build }}
+        run: npm run build
+
+      - name: Upload coverage report
+        if: ${{ inputs.coverage && !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ inputs.working-directory }}
+          path: ${{ inputs.working-directory }}/coverage/
+          retention-days: 14
+          if-no-files-found: warn

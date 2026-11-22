@@ -1,0 +1,26 @@
+# Dependabot щотижня перевіряє оновлення залежностей і відкриває PR.
+# Бекенд і фронтенд — окремо, плюс версії GitHub Actions у workflow-файлах.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /backend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps(backend)"
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps(frontend)"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "deps(ci)"

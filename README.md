@@ -1,4 +1,7 @@
 # StudySwap
+
+[![CI](https://github.com/JuliaVushyvana/StudySwap/actions/workflows/ci.yml/badge.svg)](https://github.com/JuliaVushyvana/StudySwap/actions/workflows/ci.yml)
+
 Платформа для обміну навчальними матеріалами між студентами. Діліться конспектами, лекціями та шпаргалками, знаходьте потрібне за предметом і курсом
 
 ## API документація
@@ -25,6 +28,29 @@ npm test    # юніт-тести рівня service/
 Змінні середовища для входу: `JWT_SECRET` (ключ підпису; значення за замовчуванням лише для локальної розробки), `TOKEN_TTL_SECONDS` (строк дії токена, 3600), `BCRYPT_ROUNDS` (вартість хешування, 10).
 
 > Якщо `backend/data.db` створено до появи входу, тестові акаунти мають заглушки замість хешів паролів: видаліть `data.db`, і seed створить їх заново.
+
+## CI
+
+На кожен `push` і `pull_request` GitHub Actions запускає [`.github/workflows/ci.yml`](.github/workflows/ci.yml). Він двічі викликає спільний reusable workflow [`ci-reusable.yml`](.github/workflows/ci-reusable.yml): для `backend/` і для `frontend/`.
+
+| Job (status check) | Що робить |
+|---|---|
+| `backend / lint & test` | `npm ci` → `npm run lint` (ESLint) → `npm run test:coverage` (node:test + вбудований coverage) → артефакт `coverage-backend` з `lcov.info` |
+| `frontend / lint & test` | `npm ci` → `npm run lint` → `npm test` (тести `lib/`) → `npm run build` (перевірка посилань і збірка в `dist/`) |
+
+- Входи reusable workflow: `working-directory` (обов'язковий), `node-version` (типово `22`), `coverage` і `build` (типово `false`).
+- Права токена мінімальні (`permissions: contents: read`). Новий запуск для тієї ж гілки скасовує попередній (`concurrency`). Кожен job має `timeout-minutes: 10`.
+- [Dependabot](.github/dependabot.yml) щотижня пропонує оновлення npm-залежностей бекенду й фронтенду та версій GitHub Actions.
+- Гілка `main` захищена: злиття PR можливе лише після зелених перевірок обох job-ів.
+
+Локально ті самі перевірки:
+
+```bash
+cd backend  && npm ci && npm run lint && npm run test:coverage
+cd frontend && npm ci && npm run lint && npm test && npm run build
+```
+
+Звіт покриття бекенду: Actions → потрібний запуск → Artifacts → `coverage-backend`.
 
 ## Docker
 

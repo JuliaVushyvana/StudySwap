@@ -8,3 +8,13 @@ README.md
 # Самі файли Docker
 Dockerfile
 .dockerignore
+
+# Інструменти розробки (лінт, тести, збірка) — на сайт не потрапляють
+node_modules
+package.json
+package-lock.json
+eslint.config.js
+scripts
+test
+dist
+coverage
