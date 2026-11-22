@@ -97,6 +97,25 @@
       <div id="previewBody" class="preview-body"></div>
     </section>
 
+    <!-- Коментарі: читати можуть усі, писати — лише зареєстровані (business_doc №10) -->
+    <section class="card comments-card" id="commentsCard" hidden>
+      <h2>Коментарі <span id="commentsCount" class="comments-count"></span></h2>
+      <p id="commentsEmpty" class="hint comments-empty" hidden>Поки що коментарів немає. Будьте першими!</p>
+      <ol id="commentsList" class="comments-list"></ol>
+      <p id="commentsError" class="result bad"></p>
+
+      <form id="commentForm" class="comment-form" hidden>
+        <textarea id="commentText" name="text" rows="3" maxlength="1000" placeholder="Напишіть коментар…" aria-label="Текст коментаря"></textarea>
+        <div class="comment-form-row">
+          <span id="commentCounter" class="hint">0 / 1000</span>
+          <button type="submit" class="btn btn-primary" data-api>Надіслати</button>
+        </div>
+        <p id="commentResult" class="result bad"></p>
+      </form>
+      <p id="commentGuestNote" class="hint guest-note comment-guest-note" hidden>🔒 Коментувати можуть зареєстровані:
+        <a id="cLogin" href="auth.html#login">увійдіть</a> або <a id="cRegister" href="auth.html#register">зареєструйтесь</a>.</p>
+    </section>
+
   </main>
 
   <script src="lib/http.js"></script>

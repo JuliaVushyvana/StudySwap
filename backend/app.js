@@ -15,6 +15,8 @@ const { createFileStore } = require('./service/storage/fileStore');
 const { createFilesRouter } = require('./api/storage/filesRouter');
 const { createMaterialRepository } = require('./service/catalog/materialRepository');
 const { createMaterialService } = require('./service/catalog/materialService');
+const { createCommentRepository } = require('./service/discussion/commentRepository');
+const { createCommentService } = require('./service/discussion/commentService');
 const { createIdempotencyRepository } = require('./service/idempotency/idempotencyRepository');
 const { createIdempotencyService } = require('./service/idempotency/idempotencyService');
 const { createHealthService, databaseProbe } = require('./service/health/healthService');
@@ -31,6 +33,7 @@ const { createUsersRouter } = require('./api/access/usersRouter');
 const { createProfileService } = require('./service/access/profileService');
 const { createRoleService } = require('./service/access/roleService');
 const { createMaterialsRouter } = require('./api/catalog/materialsRouter');
+const { createCommentsRouter } = require('./api/discussion/commentsRouter');
 const { createHealthRouter } = require('./api/health/healthRouter');
 const { seed } = require('./seed');
 const { config: defaultConfig } = require('./config');
@@ -40,6 +43,7 @@ function createApp(db, config = defaultConfig) {
   const revokedTokenRepository = createRevokedTokenRepository(db);
   const fileRepository = createFileRepository(db);
   const materialRepository = createMaterialRepository(db);
+  const commentRepository = createCommentRepository(db);
   const idempotencyRepository = createIdempotencyRepository(db);
   const fileStore = createFileStore(config.filesDir || defaultConfig.filesDir);
   seed({ userRepository, fileRepository, materialRepository, fileStore });
@@ -55,6 +59,7 @@ function createApp(db, config = defaultConfig) {
   const storageService = createStorageService({ fileRepository, accessPolicy, fileStore });
   const idempotencyService = createIdempotencyService({ idempotencyRepository });
   const materialService = createMaterialService({ materialRepository, storageService, idempotencyService, accessPolicy, userDirectory: accessService });
+  const commentService = createCommentService({ commentRepository, materialService, idempotencyService, accessPolicy, userDirectory: accessService });
   const healthService = createHealthService({ probes: { database: databaseProbe(db) } });
 
   const app = express();
@@ -77,6 +82,8 @@ function createApp(db, config = defaultConfig) {
 
   app.use('/auth', appContext('identity'), createAuthRouter({ identityService }));
   app.use('/users', appContext('identity'), createUsersRouter({ profileService, roleService, materialService }));
+  // Раніше за /materials: коментарі — окремий модуль discussion, а не частина каталогу
+  app.use('/materials/:id/comments', appContext('discussion'), createCommentsRouter({ commentService }));
   app.use('/materials', appContext('catalog'), createMaterialsRouter({ materialService }));
   app.use('/files', appContext('storage'), createFilesRouter({ storageService }));
 

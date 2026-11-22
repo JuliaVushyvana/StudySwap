@@ -43,6 +43,7 @@ test('користувач: відкриває й додає, змінює/ви�
   assert.equal(canManageMaterial(julia, annasMaterial, 'update'), false);
   assert.equal(canManageMaterial(julia, annasMaterial, 'delete'), false);
   assert.equal(can(julia, P.USER_BLOCK), false);
+  assert.equal(can(julia, P.COMMENT_DELETE_ANY), false);
 });
 
 test('адмін: усе, зокрема чужі матеріали й модерація', () => {
@@ -50,4 +51,5 @@ test('адмін: усе, зокрема чужі матеріали й моде
   assert.equal(canManageMaterial(admin, annasMaterial, 'delete'), true);
   assert.equal(can(admin, P.REPORT_REVIEW), true);
   assert.equal(can(admin, P.USER_BLOCK), true);
+  assert.equal(can(admin, P.COMMENT_DELETE_ANY), true);
 });

@@ -9,12 +9,13 @@ const Permission = Object.freeze({
   MATERIAL_READ: 'material:read',             // відкрити сторінку матеріалу (опис, автор, дата)
   FILE_PREVIEW: 'file:preview',               // переглянути PDF / Word / TXT на сайті (без скачування)
   FILE_READ: 'file:read',                     // скачати файл матеріалу
-  COMMENT_CREATE: 'comment:create',           // писати коментарі (модуль обговорення — пізніше)
+  COMMENT_CREATE: 'comment:create',           // писати коментарі (модуль discussion)
   MATERIAL_CREATE: 'material:create',         // додати матеріал
   MATERIAL_UPDATE_OWN: 'material:update:own', // змінити свій матеріал
   MATERIAL_DELETE_OWN: 'material:delete:own', // видалити свій матеріал
   MATERIAL_UPDATE_ANY: 'material:update:any', // змінити будь-який матеріал
   MATERIAL_DELETE_ANY: 'material:delete:any', // видалити будь-який матеріал
+  COMMENT_DELETE_ANY: 'comment:delete:any',   // видалити будь-який коментар (автор свій не видаляє)
   REPORT_REVIEW: 'report:review',             // розглядати скарги (Пізніше)
   USER_BLOCK: 'user:block',                   // блокувати порушників (Пізніше)
   USER_ROLE_MANAGE: 'user:role:manage',       // бачити користувачів і призначати / знімати адмінів
@@ -25,7 +26,7 @@ const P = Permission;
 // (business_doc №10: писати коментарі — лише зареєстровані)
 const GUEST = [P.MATERIAL_LIST, P.MATERIAL_READ, P.FILE_PREVIEW];
 const USER = [...GUEST, P.FILE_READ, P.COMMENT_CREATE, P.MATERIAL_CREATE, P.MATERIAL_UPDATE_OWN, P.MATERIAL_DELETE_OWN];
-const ADMIN = [...USER, P.MATERIAL_UPDATE_ANY, P.MATERIAL_DELETE_ANY, P.REPORT_REVIEW, P.USER_BLOCK];
+const ADMIN = [...USER, P.MATERIAL_UPDATE_ANY, P.MATERIAL_DELETE_ANY, P.COMMENT_DELETE_ANY, P.REPORT_REVIEW, P.USER_BLOCK];
 const SUPERADMIN = [...ADMIN, P.USER_ROLE_MANAGE];
 
 const ROLE_PERMISSIONS = Object.freeze({
