@@ -20,7 +20,19 @@
     </div>
     <div class="topbar-actions">
       <a href="add.html" class="btn btn-primary">+ Додати матеріал</a>
-      <span class="bell" aria-hidden="true">🔔<i></i></span>
+      <!-- Сповіщення (business_doc №16): лише після входу; лічильник — непрочитані -->
+      <span class="bell-wrap">
+        <button id="bellBtn" class="bell" type="button" aria-label="Сповіщення" aria-haspopup="true" aria-expanded="false" hidden>🔔<i id="bellCount" hidden></i></button>
+        <div id="notifPanel" class="notif-panel" role="dialog" aria-label="Сповіщення" hidden>
+          <div class="notif-head">
+            <b>Сповіщення</b>
+            <button id="notifReadAll" type="button" class="notif-read-all" data-api>Позначити всі ✓</button>
+          </div>
+          <p id="notifEmpty" class="notif-empty" hidden>Поки що немає сповіщень</p>
+          <ul id="notifList" class="notif-list"></ul>
+          <p id="notifError" class="result bad notif-error"></p>
+        </div>
+      </span>
       <!-- Гість: «Увійти / Реєстрація». Після входу: аватар, нікнейм, рівень доступу, «Вийти» -->
       <span id="guestLinks" class="account">
         <a href="auth.html#login" class="btn btn-outline">Увійти</a>
