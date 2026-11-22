@@ -26,12 +26,15 @@ test('користувач: скачує й додає, змінює лише с
   assert.equal(can(julia, P.FILE_READ), true);
   assert.equal(canManageMaterial(anna, annasMaterial, 'delete'), true);
   assert.equal(canManageMaterial(julia, annasMaterial, 'delete'), false);
+  assert.equal(can(julia, P.COMMENT_DELETE_ANY), false);
 });
 
 test('адмін керує всіма матеріалами; ролі призначає лише суперадмін', () => {
   assert.equal(canManageMaterial(admin, annasMaterial, 'update'), true);
   assert.equal(can(admin, P.USER_ROLE_MANAGE), false);
   assert.equal(can(superadmin, P.USER_ROLE_MANAGE), true);
+  assert.equal(can(admin, P.COMMENT_DELETE_ANY), true);
+  assert.equal(can(superadmin, P.COMMENT_DELETE_ANY), true);
   assert.equal(label(superadmin), 'Суперадмін');
 });
 

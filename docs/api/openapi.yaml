@@ -6,6 +6,7 @@ info:
     Контракт API платформи StudySwap для обміну навчальними матеріалами.
     Базовий CRUD для ресурсу «Матеріал» (контекст «Каталог матеріалів»)
     і реєстрація, вхід та вихід (контекст «Користувачі та доступ»).
+    Коментарі під матеріалами (контекст «Обговорення»).
 
     Захищені запити передають токен із `POST /auth/login` у заголовку `Authorization: Bearer <JWT>`.
     Без дійсного токена (відсутній, підроблений, прострочений або відкликаний після `POST /auth/logout`)
@@ -16,7 +17,7 @@ info:
     Наскрізні правила (docs/adr/0004-error-handling-and-resilience.md):
     - `X-Request-Id` — клієнт може передати свій id запиту (до 128 символів), інакше сервер генерує UUID.
       Сервер завжди повертає його в заголовку відповіді й у полі `requestId` помилки.
-    - `POST /materials` вимагає `Idempotency-Key`: повтор із тим самим ключем не створює дубліката.
+    - `POST /materials` і `POST /materials/{id}/comments` вимагають `Idempotency-Key`: повтор із тим самим ключем не створює дубліката.
     - `429` і `503` містять заголовок `Retry-After` (секунди), після якого запит можна повторити.
       Безпечно повторювати `GET`, `PATCH`, `DELETE` і `POST` з тим самим `Idempotency-Key`.
     - Коли БД недоступна, `GET /materials` працює в degraded mode: віддає останню збережену копію каталогу з `degraded: true`.
@@ -29,6 +30,8 @@ tags:
     description: Реєстрація, вхід і вихід
   - name: Materials
     description: Каталог навчальних матеріалів
+  - name: Comments
+    description: Коментарі під матеріалами
   - name: Health
     description: Службові ендпоїнти
 
@@ -317,6 +320,128 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /materials/{id}/comments:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Ідентифікатор матеріалу
+        schema:
+          type: integer
+          minimum: 1
+        example: 100
+
+    get:
+      tags: [Comments]
+      summary: Коментарі під матеріалом
+      description: Читати коментарі можуть усі, зокрема гість. Спочатку старіші.
+      operationId: listComments
+      responses:
+        '200':
+          description: Коментарі (порожній список, якщо їх немає)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentListResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+    post:
+      tags: [Comments]
+      summary: Написати коментар
+      description: |
+        Коментувати можуть лише зареєстровані користувачі (business_doc №10).
+        Повтор із тим самим `Idempotency-Key` повертає вже створений коментар.
+      operationId: createComment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentCreateRequest'
+      responses:
+        '201':
+          description: Коментар додано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /materials/{id}/comments/{commentId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Ідентифікатор матеріалу
+        schema:
+          type: integer
+          minimum: 1
+        example: 100
+      - name: commentId
+        in: path
+        required: true
+        description: Ідентифікатор коментаря під цим матеріалом
+        schema:
+          type: integer
+          minimum: 1
+        example: 7
+
+    delete:
+      tags: [Comments]
+      summary: Видалити коментар (адмін)
+      description: Видаляти коментарі можуть лише адмін і суперадмін; автор свій коментар не видаляє.
+      operationId: deleteComment
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Коментар видалено (тіла відповіді немає)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Матеріал (MATERIAL_NOT_FOUND) або коментар під ним (COMMENT_NOT_FOUND) не знайдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: NotFound
+                code: COMMENT_NOT_FOUND
+                details: null
+                requestId: 5e6f7a8b-9c0d-4e1f-a2b3-c4d5e6f7a8b9
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -864,6 +989,56 @@ components:
           type: boolean
           description: true — БД недоступна, дані з останньої збереженої копії каталогу й можуть бути застарілими
 
+    CommentCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Текст коментаря; пробіли на початку й у кінці обрізаються
+      example:
+        text: Дякую, дуже допомогло перед модулем!
+
+    CommentResponse:
+      type: object
+      required: [id, materialId, authorId, authorNickname, text, createdAt]
+      properties:
+        id:
+          type: integer
+        materialId:
+          type: integer
+        authorId:
+          type: integer
+        authorNickname:
+          type: string
+          description: Актуальний нікнейм автора коментаря
+        text:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      example:
+        id: 7
+        materialId: 100
+        authorId: 2
+        authorNickname: Julia
+        text: Дякую, дуже допомогло перед модулем!
+        createdAt: '2026-11-23T09:30:00Z'
+
+    CommentListResponse:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommentResponse'
+        total:
+          type: integer
+
     RegisterRequest:
       type: object
       additionalProperties: false
@@ -988,9 +1163,10 @@ components:
         - ValidationError (400), /auth/*: NICKNAME_REQUIRED, INVALID_NICKNAME, LOGIN_REQUIRED, INVALID_LOGIN,
           EMAIL_REQUIRED, INVALID_EMAIL, PASSWORD_REQUIRED, PASSWORD_TOO_SHORT, PASSWORD_TOO_LONG,
           BIRTH_DATE_REQUIRED, INVALID_BIRTH_DATE, UNKNOWN_FIELD, INVALID_BODY;
+        - ValidationError (400), коментарі: TEXT_REQUIRED, TEXT_TOO_LONG, UNKNOWN_FIELD, INVALID_BODY;
         - Unauthorized (401): UNAUTHORIZED, INVALID_CREDENTIALS;
         - Forbidden (403): FORBIDDEN;
-        - NotFound (404): MATERIAL_NOT_FOUND, ROUTE_NOT_FOUND;
+        - NotFound (404): MATERIAL_NOT_FOUND, COMMENT_NOT_FOUND, ROUTE_NOT_FOUND;
         - Conflict (409): IDEMPOTENCY_KEY_REUSED, LOGIN_TAKEN, NICKNAME_TAKEN, EMAIL_TAKEN;
         - TooManyRequests (429): RATE_LIMITED;
         - InternalError (500): code = null;

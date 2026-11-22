@@ -603,8 +603,123 @@
         : '';
       $('mDelete').onclick = async () => { if (await deleteMaterial(m)) location.href = 'index.html'; };
       $('materialCard').hidden = false;
+      loadComments(m);
     } catch (e) {
       $('materialError').textContent = `Не вдалося завантажити: ${e.message} (requestId: ${e.requestId})`;
+    }
+  }
+
+  // ---------- Коментарі (material.html): читають усі, пишуть зареєстровані ----------
+  const COMMENT_MAX = 1000;
+  const formatDateTime = (iso) => new Date(iso).toLocaleString('uk-UA', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+
+  function renderComment(c, material) {
+    const li = Object.assign(document.createElement('li'), { className: 'comment' });
+    const avatar = Object.assign(document.createElement('span'), { className: 'avatar', textContent: initials(c.authorNickname) });
+    avatar.setAttribute('aria-hidden', 'true');
+    const head = Object.assign(document.createElement('div'), { className: 'comment-head' });
+    head.append(
+      Object.assign(document.createElement('b'), { textContent: c.authorNickname }),
+      Object.assign(document.createElement('span'), { className: 'comment-date', textContent: `· ${formatDateTime(c.createdAt)}` }),
+    );
+    if (c.authorId === material.authorId) {
+      head.append(Object.assign(document.createElement('span'), { className: 'comment-author-badge', textContent: 'автор' }));
+    }
+    // Видаляють лише адмін і суперадмін (модерація); решта кнопки не бачить, сервер однаково перевіряє права
+    if (Access.can(currentUser(), P.COMMENT_DELETE_ANY)) {
+      const del = Object.assign(document.createElement('button'), { type: 'button', className: 'comment-delete', textContent: 'Видалити' });
+      del.dataset.api = '';
+      del.onclick = () => deleteComment(c, material, li, del);
+      head.append(del);
+    }
+    // textContent, а не innerHTML: текст коментаря — від користувача
+    const body = document.createElement('div');
+    body.append(head, Object.assign(document.createElement('p'), { className: 'comment-text', textContent: c.text }));
+    li.append(avatar, body);
+    return li;
+  }
+
+  async function deleteComment(c, material, li, btn) {
+    if (!window.confirm(`Видалити коментар ${c.authorNickname}?`)) return;
+    btn.disabled = true;
+    $('commentsError').textContent = '';
+    try {
+      const url = `${API_URL}/materials/${material.id}/comments/${c.id}`;
+      const res = await callApi(`DELETE /materials/${material.id}/comments/${c.id}`, url, { method: 'DELETE', headers: authHeaders() });
+      // 404 — коментар уже видалив інший адмін: прибираємо його й тут
+      if (res.status === 204 || res.status === 404) {
+        li.remove();
+        showCommentCount($('commentsList').children.length);
+        return;
+      }
+      if (res.status === 401) { location.href = loginUrl(); return; }
+      $('commentsError').textContent = `Не вдалося видалити: ${describeError(await readError(res))}`;
+    } catch (e) {
+      $('commentsError').textContent = `Не вдалося видалити: ${e.message}`;
+    }
+    btn.disabled = false;
+  }
+
+  function showCommentCount(total) {
+    $('commentsCount').textContent = total ? `(${total})` : '';
+    $('commentsEmpty').hidden = total > 0;
+  }
+
+  async function loadComments(material) {
+    $('commentsCard').hidden = false;
+    const canComment = Access.can(currentUser(), P.COMMENT_CREATE);
+    $('commentForm').hidden = !canComment;
+    $('commentGuestNote').hidden = canComment;
+    if (!canComment) {
+      $('cLogin').href = loginUrl();
+      $('cRegister').href = loginUrl().replace('#login', '#register');
+    }
+    $('commentForm').onsubmit = (event) => submitComment(event, material);
+
+    try {
+      const res = await callApi(`GET /materials/${material.id}/comments`, `${API_URL}/materials/${material.id}/comments`, { headers: authHeaders() });
+      if (!res.ok) { $('commentsError').textContent = `Коментарі не завантажились: ${describeError(await readError(res))}`; return; }
+      const { items, total } = await res.json();
+      $('commentsList').replaceChildren(...items.map((c) => renderComment(c, material)));
+      showCommentCount(total);
+    } catch (e) {
+      $('commentsError').textContent = `Коментарі не завантажились: ${e.message}`;
+    }
+  }
+
+  async function submitComment(event, material) {
+    event.preventDefault();
+    const text = $('commentText').value.trim();
+    $('commentResult').textContent = '';
+    if (!text) { $('commentResult').textContent = 'Напишіть текст коментаря.'; return; }
+
+    const submitBtn = event.submitter || $('commentForm').querySelector('[type=submit]');
+    submitBtn.disabled = true; // подвійний клік не надішле коментар двічі
+    const payload = { materialId: material.id, text };
+    try {
+      const key = await getOrReuseKey(payload); // повтор після збою з тим самим текстом не створить дубль
+      const res = await callApi(`POST /materials/${material.id}/comments`, `${API_URL}/materials/${material.id}/comments`, {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({ text }), idempotencyKey: key,
+      });
+      if (res.status === 201) {
+        await forgetKey(payload); // такий самий текст пізніше — уже новий коментар
+        $('commentsList').append(renderComment(await res.json(), material));
+        showCommentCount($('commentsList').children.length);
+        $('commentText').value = '';
+        $('commentCounter').textContent = `0 / ${COMMENT_MAX}`;
+      } else if (res.status === 401) {
+        location.href = loginUrl(); // сесія завершилась
+      } else {
+        const err = await readError(res);
+        if (res.status >= 400 && res.status < 500 && res.status !== 429) await forgetKey(payload);
+        $('commentResult').textContent = res.status === 404 ? 'Матеріал видалено, коментувати вже не можна.' : `Помилка ${res.status}: ${describeError(err)}`;
+      }
+    } catch (e) {
+      $('commentResult').textContent = `Не вдалося надіслати: ${e.message}. Натисніть ще раз, дубля не буде.`;
+    } finally {
+      if (!degraded.isDegraded()) submitBtn.disabled = false;
     }
   }
 
@@ -902,6 +1017,7 @@
   if (page === 'material') {
     loadMaterialPage();
     $('previewClose').addEventListener('click', closePreview);
+    $('commentText').addEventListener('input', () => { $('commentCounter').textContent = `${$('commentText').value.length} / ${COMMENT_MAX}`; });
   }
   if (page === 'profile') loadProfilePage();
   checkHealth().then((ok) => { if (ok && (page === 'home' || page === 'search')) loadMaterials(); });

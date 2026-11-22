@@ -476,3 +476,24 @@ body[data-role="user"] .docx-page, body[data-role="admin"] .docx-page, body[data
 .no-results-icon { font-size: 48px; display: block; margin-bottom: 12px; }
 .no-results-title { font: 800 20px var(--display); margin: 0 0 8px; letter-spacing: -0.3px; overflow-wrap: anywhere; }
 .no-results-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+
+/* ---------- Коментарі (material.html) ---------- */
+.comments-card { margin-top: 24px; }
+.comments-count { color: var(--muted); font-weight: 700; }
+.comments-empty { margin: 0 0 20px; }
+.comments-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; }
+.comments-list:empty { display: none; }
+.comment { display: grid; grid-template-columns: 36px 1fr; gap: 12px; }
+.comment-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 14px; }
+.comment-head b { font-weight: 700; }
+.comment-date { color: var(--muted); }
+.comment-author-badge { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; color: var(--chip-ink); background: var(--chip-bg); padding: 2px 8px; border-radius: 999px; }
+.comment-text { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
+.comment-form { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+.comment-form textarea { width: 100%; box-sizing: border-box; }
+.comment-form-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
+.comment-form-row .hint { margin: 0; }
+.comment-guest-note { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 14px; }
+.comment-delete { margin-left: auto; border: 0; background: none; padding: 0; font: 600 13px var(--text); color: var(--bad); cursor: pointer; }
+.comment-delete:hover { text-decoration: underline; }
+.comment-delete:disabled { opacity: .5; cursor: default; text-decoration: none; }
