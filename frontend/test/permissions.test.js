@@ -26,6 +26,8 @@ test('гість: каталог, сторінка матеріалу й пер�
 test('користувач: скачує й додає, змінює лише своє', () => {
   assert.equal(can(julia, P.FILE_READ), true);
   assert.equal(can(julia, P.NOTIFICATION_READ), true);
+  assert.equal(can(julia, P.REPORT_CREATE), true);
+  assert.equal(can(julia, P.REPORT_REVIEW), false);
   assert.equal(canManageMaterial(anna, annasMaterial, 'delete'), true);
   assert.equal(canManageMaterial(julia, annasMaterial, 'delete'), false);
   assert.equal(can(julia, P.COMMENT_DELETE_ANY), false);
@@ -36,6 +38,7 @@ test('адмін керує всіма матеріалами; ролі приз
   assert.equal(can(admin, P.USER_ROLE_MANAGE), false);
   assert.equal(can(superadmin, P.USER_ROLE_MANAGE), true);
   assert.equal(can(admin, P.COMMENT_DELETE_ANY), true);
+  assert.equal(can(admin, P.REPORT_REVIEW), true);
   assert.equal(can(superadmin, P.COMMENT_DELETE_ANY), true);
   assert.equal(label(superadmin), 'Суперадмін');
 });

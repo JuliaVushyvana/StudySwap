@@ -714,10 +714,63 @@
         ? (currentUser().id === m.authorId ? 'Це ваш матеріал: ви можете його видалити.' : 'Ви адмін: можете видалити будь-який матеріал.')
         : '';
       $('mDelete').onclick = async () => { if (await deleteMaterial(m)) location.href = 'index.html'; };
+      setupReport(m);
       $('materialCard').hidden = false;
       loadComments(m);
     } catch (e) {
       $('materialError').textContent = `Не вдалося завантажити: ${e.message} (requestId: ${e.requestId})`;
+    }
+  }
+
+  // ---------- Скарга на матеріал (material.html) ----------
+  const REPORT_MAX = 1000;
+
+  function setupReport(material) {
+    const user = currentUser();
+    // Автор на свій матеріал не скаржиться; гість бачить посилання, але йде на вхід
+    $('mReport').hidden = Boolean(user && user.id === material.authorId);
+    $('mReport').onclick = () => {
+      if (!Access.can(currentUser(), P.REPORT_CREATE)) { location.href = loginUrl(); return; }
+      $('reportTitle').textContent = `Скарга на «${material.title}»`;
+      $('reportResult').textContent = '';
+      $('reportDialog').showModal();
+      $('reportText').focus();
+    };
+    $('reportForm').onsubmit = (event) => submitReport(event, material);
+  }
+
+  async function submitReport(event, material) {
+    event.preventDefault();
+    const text = $('reportText').value.trim();
+    $('reportResult').textContent = '';
+    if (!text) { $('reportResult').textContent = 'Опишіть, що не так із матеріалом.'; return; }
+
+    const submitBtn = event.submitter || $('reportForm').querySelector('[type=submit]');
+    submitBtn.disabled = true;
+    const payload = { materialId: material.id, text };
+    try {
+      const key = await getOrReuseKey(payload); // повтор після збою з тим самим текстом не створить другу скаргу
+      const res = await callApi('POST /reports', `${API_URL}/reports`, {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify(payload), idempotencyKey: key,
+      });
+      if (res.status === 201) {
+        await forgetKey(payload);
+        $('reportDialog').close();
+        $('reportText').value = '';
+        $('reportCounter').textContent = `0 / ${REPORT_MAX}`;
+        $('mReport').hidden = true;
+        $('mReportNote').textContent = 'Скаргу надіслано ✓ Про рішення адміна повідомимо в сповіщеннях.';
+      } else if (res.status === 401) {
+        location.href = loginUrl();
+      } else {
+        const err = await readError(res);
+        if (res.status >= 400 && res.status < 500 && res.status !== 429) await forgetKey(payload);
+        $('reportResult').textContent = res.status === 404 ? 'Матеріал уже видалено.' : `Помилка ${res.status}: ${describeError(err)}`;
+      }
+    } catch (e) {
+      $('reportResult').textContent = `Не вдалося надіслати: ${e.message}. Натисніть ще раз, дубля не буде.`;
+    } finally {
+      if (!degraded.isDegraded()) submitBtn.disabled = false;
     }
   }
 
@@ -1039,6 +1092,152 @@
     loadRoles();
   }
 
+  // ---------- Скарги в профілі адміна: таблиця, вікно скарги й рішення ----------
+  const REPORTS_PAGE_SIZE = 20;
+  let reportsPage = 1;
+  let viewing = null; // скарга, відкрита у вікні
+
+  const REPORT_STATUS = { open: 'Нова', resolved: 'Задоволено', rejected: 'Відхилено' };
+  // Дія з кнопки рішення → тіло POST /reports/{id}/decision
+  const DECISIONS = {
+    resolve: { result: 'resolved' },
+    remove: { result: 'resolved', deleteMaterial: true },
+    reject: { result: 'rejected' },
+  };
+
+  const statusLabel = (r) => REPORT_STATUS[r.status] + (r.decision && r.decision.deleteMaterial ? ' · матеріал видалено' : '');
+
+  function reportRow(r) {
+    const tr = document.createElement('tr');
+    tr.title = 'Відкрити скаргу';
+    tr.addEventListener('click', () => openReport(r));
+    const title = cell(r.materialTitle, 'title');
+    const text = cell(r.text, 'report-text');
+    const actions = cell('', 'actions');
+    if (r.status === 'open') {
+      // Швидкий шлях: те саме вікно скарги, де вибрана дія вже підсвічена
+      const btn = (label, cls, action, hint) => {
+        const b = Object.assign(document.createElement('button'), { type: 'button', className: `btn ${cls} btn-xs`, textContent: label, title: hint });
+        b.setAttribute('aria-label', hint);
+        b.dataset.api = '';
+        b.addEventListener('click', (e) => { e.stopPropagation(); openReport(r, action); });
+        return b;
+      };
+      actions.append(
+        btn('✓', 'btn-outline', 'resolve', 'Задовольнити'),
+        btn('✕', 'btn-outline', 'reject', 'Відхилити'),
+        btn('🗑', 'btn-danger', 'remove', 'Задовольнити й видалити матеріал'),
+      );
+    } else {
+      actions.appendChild(Object.assign(document.createElement('span'), { className: `report-status ${r.status}`, textContent: statusLabel(r) }));
+    }
+    tr.append(title, cell(r.reporterNickname), text, cell(formatDate(r.createdAt)), actions);
+    return tr;
+  }
+
+  async function loadReports() {
+    $('reportsResult').textContent = '';
+    const status = $('reportsStatus').value;
+    const query = new URLSearchParams({ page: String(reportsPage) });
+    if (status) query.set('status', status);
+    try {
+      const res = await callApi('GET /reports', `${API_URL}/reports?${query}`, { headers: authHeaders() });
+      if (res.status === 401) { location.replace(loginUrl()); return; }
+      if (!res.ok) { $('reportsResult').textContent = describeError(await readError(res)); return; }
+      const { items, total, page } = await res.json();
+      const tbody = $('reportsList');
+      if (!items.length) {
+        const empty = Object.assign(document.createElement('tr'), { className: 'empty' });
+        empty.appendChild(Object.assign(document.createElement('td'), { colSpan: 5, textContent: status === 'open' ? 'Нових скарг немає 🎉' : 'Скарг немає' }));
+        tbody.replaceChildren(empty);
+      } else {
+        tbody.replaceChildren(...items.map(reportRow));
+      }
+      const pages = Math.max(1, Math.ceil(total / REPORTS_PAGE_SIZE));
+      $('reportsPager').hidden = pages <= 1;
+      $('reportsPage').textContent = `${page} з ${pages}`;
+      $('reportsPrev').disabled = page <= 1;
+      $('reportsNext').disabled = page >= pages;
+    } catch (e) {
+      $('reportsResult').textContent = `Скарги не завантажились: ${e.message}`;
+    }
+  }
+
+  // Вікно скарги: повне повідомлення, перехід до матеріалу; для нової — коментар і рішення.
+  // chosen — дія, з якою відкрили вікно зі значка в таблиці (її кнопка підсвічена)
+  function openReport(r, chosen = null) {
+    viewing = r;
+    const deleted = Boolean(r.decision && r.decision.deleteMaterial);
+    $('rvTitle').textContent = `Скарга #${r.id}`;
+    $('rvStatus').textContent = statusLabel(r);
+    $('rvStatus').className = `report-status ${r.status}`;
+    $('rvMaterial').textContent = `«${r.materialTitle}»`;
+    $('rvOpenMaterial').href = `material.html?id=${r.materialId}`;
+    $('rvOpenMaterial').hidden = deleted;
+    $('rvMaterialGone').hidden = !deleted;
+    $('rvAuthor').textContent = r.materialAuthorNickname;
+    $('rvReporter').textContent = r.reporterNickname;
+    $('rvDate').textContent = formatDateTime(r.createdAt);
+    $('rvText').textContent = r.text;
+    $('rvResult').textContent = '';
+
+    const open = r.status === 'open';
+    $('rvActions').hidden = !open;
+    $('rvDecision').hidden = open;
+    if (open) {
+      $('rvComment').value = '';
+      $('reportViewForm').querySelectorAll('.report-decisions .btn').forEach((b) => b.classList.toggle('is-chosen', b.value === chosen));
+    } else {
+      const comment = r.decision && r.decision.comment ? `Коментар: ${r.decision.comment}` : 'Без коментаря.';
+      const when = r.decision ? `${formatDateTime(r.decision.reviewedAt)}. ` : '';
+      $('rvDecisionText').textContent = `${statusLabel(r)}, ${when}${comment}`;
+    }
+    $('reportViewDialog').showModal();
+    const focusBtn = chosen && $('reportViewForm').querySelector(`.report-decisions [value="${chosen}"]`);
+    if (focusBtn) focusBtn.focus();
+  }
+
+  async function submitDecision(event) {
+    event.preventDefault();
+    const action = event.submitter && event.submitter.value;
+    if (!viewing || !DECISIONS[action]) return;
+    const body = { ...DECISIONS[action] };
+    const comment = $('rvComment').value.trim();
+    if (comment) body.comment = comment;
+    const buttons = $('reportViewForm').querySelectorAll('.report-decisions .btn');
+    buttons.forEach((b) => { b.disabled = true; });
+    try {
+      const res = await callApi(`POST /reports/${viewing.id}/decision`, `${API_URL}/reports/${viewing.id}/decision`, {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify(body),
+      });
+      if (res.ok || res.status === 409) {
+        // 409 — скаргу вже розглянув інший адмін: просто оновлюємо таблицю
+        $('reportViewDialog').close();
+        if (res.status === 409) $('reportsResult').textContent = 'Цю скаргу вже розглянув інший адмін.';
+        loadReports();
+        if (body.deleteMaterial) loadProfileMaterials();
+      } else if (res.status === 401) {
+        location.replace(loginUrl());
+      } else {
+        $('rvResult').textContent = describeError(await readError(res));
+      }
+    } catch (e) {
+      $('rvResult').textContent = `Не вдалося: ${e.message}`;
+    } finally {
+      if (!degraded.isDegraded()) buttons.forEach((b) => { b.disabled = false; });
+    }
+  }
+
+  function setupReports() {
+    $('reportsCard').hidden = false;
+    $('reportsStatus').addEventListener('change', () => { reportsPage = 1; loadReports(); });
+    $('reportsPrev').addEventListener('click', () => { reportsPage -= 1; loadReports(); });
+    $('reportsNext').addEventListener('click', () => { reportsPage += 1; loadReports(); });
+    $('reportViewForm').addEventListener('submit', submitDecision);
+    $('rvClose').addEventListener('click', () => $('reportViewDialog').close());
+    loadReports();
+  }
+
   async function loadProfilePage() {
     if (!currentUser()) { location.replace(loginUrl()); return; }
     try {
@@ -1053,7 +1252,7 @@
     }
     $('pMaterialsTitle').textContent = isAdmin() ? 'Всі матеріали' : 'Мої матеріали';
     $('pAuthorCol').hidden = !isAdmin();
-    $('adminNext').hidden = !isAdmin();
+    if (Access.can(currentUser(), P.REPORT_REVIEW)) setupReports();
     if (Access.can(currentUser(), P.USER_ROLE_MANAGE)) setupRoles();
     loadProfileMaterials();
 
@@ -1132,6 +1331,8 @@
     loadMaterialPage();
     $('previewClose').addEventListener('click', closePreview);
     $('commentText').addEventListener('input', () => { $('commentCounter').textContent = `${$('commentText').value.length} / ${COMMENT_MAX}`; });
+    $('reportText').addEventListener('input', () => { $('reportCounter').textContent = `${$('reportText').value.length} / ${REPORT_MAX}`; });
+    $('reportCancel').addEventListener('click', () => $('reportDialog').close());
   }
   if (page === 'profile') loadProfilePage();
   checkHealth().then((ok) => { if (ok && (page === 'home' || page === 'search')) loadMaterials(); });

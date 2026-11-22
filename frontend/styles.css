@@ -371,8 +371,6 @@ body[data-role="admin"] .avatar { background: #fee4e2; color: #b42318; }
 .field-note { font-weight: 400; font-size: 13px; color: var(--muted); }
 input:disabled { background: var(--head); color: var(--muted); }
 .sep { border: 0; border-top: 1px solid var(--line); margin: 24px 0; }
-.admin-next { border: 1.5px dashed #d6d9e8; background: transparent; }
-.admin-next .hint { margin: 0; max-width: 720px; }
 
 .dialog { border: 0; border-radius: 24px; padding: 28px; width: min(560px, 92vw); box-shadow: 0 30px 80px -20px #12152b66; }
 .dialog::backdrop { background: #12152b80; backdrop-filter: blur(2px); }
@@ -529,3 +527,30 @@ body[data-role="user"] .docx-page, body[data-role="admin"] .docx-page, body[data
 .notif-time { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; }
 .notif-empty { margin: 0; padding: 24px 16px; color: var(--muted); font-size: 14px; text-align: center; }
 .notif-error { margin: 0; padding: 0 16px 12px; font-size: 13px; }
+
+/* ---------- Скарги: посилання й вікно на material.html, таблиця в профілі адміна ---------- */
+.report-link { justify-self: start; border: 0; background: none; padding: 0; font: 600 14px var(--text); color: var(--muted); cursor: pointer; }
+.report-link:hover { color: var(--bad); text-decoration: underline; }
+.report-note { margin: 0; font-size: 14px; }
+.report-hint { margin: 0; }
+.reports-filter { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; }
+.reports-filter select { width: auto; padding: 8px 12px; }
+.reports-table td.report-text { max-width: 320px; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+.reports-table .btn-xs + .btn-xs { margin-left: 6px; }
+.report-status { font-size: 13px; font-weight: 600; white-space: normal; }
+.report-status.resolved { color: var(--ok); }
+.report-status.rejected { color: var(--muted); }
+.reports-pager { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 16px; }
+.reports-pager .hint { margin: 0; }
+.decision-report { background: var(--head); border-radius: var(--radius-sm); padding: 14px 16px; }
+.decision-report .hint { margin: 0 0 6px; }
+.decision-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.reports-table tbody tr:not(.empty) { cursor: pointer; }
+.report-view-head { margin-bottom: 0; }
+.report-facts { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 0; font-size: 15px; }
+.report-facts dt { color: var(--muted); }
+.report-facts dd { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; }
+.report-material { font-weight: 600; overflow-wrap: anywhere; }
+.report-gone { margin: 0; }
+.report-decisions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+.report-decisions .btn.is-chosen { box-shadow: 0 0 0 4px #3b4bdb33; }
