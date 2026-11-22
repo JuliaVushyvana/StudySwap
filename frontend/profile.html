@@ -137,13 +137,78 @@
       <p id="rolesResult" class="result"></p>
     </section>
 
-    <!-- Лише для адміна: модерація ще не реалізована на бекенді -->
-    <section class="card admin-next" id="adminNext" hidden>
-      <h2>Модерація</h2>
-      <p class="hint">Скарги, блокування порушників і керування коментарями з'являться разом із модулем модерації
-        (у roadmap це етап «Пізніше»). Зараз адмін може змінювати й видаляти будь-які матеріали в таблиці вище.</p>
+    <!-- Лише для адміна й суперадміна: скарги на матеріали (GET /reports, POST /reports/{id}/decision) -->
+    <section class="card reports-card" id="reportsCard" hidden>
+      <div class="card-title-row">
+        <h2>Скарги</h2>
+        <label class="reports-filter">Статус
+          <select id="reportsStatus">
+            <option value="open">Нові</option>
+            <option value="resolved">Задоволені</option>
+            <option value="rejected">Відхилені</option>
+            <option value="">Усі</option>
+          </select>
+        </label>
+      </div>
+      <div class="table-wrap">
+        <table class="table reports-table">
+          <thead><tr><th>Матеріал</th><th>Хто</th><th>Текст</th><th>Дата</th><th>Дії</th></tr></thead>
+          <tbody id="reportsList"></tbody>
+        </table>
+      </div>
+      <div class="reports-pager" id="reportsPager" hidden>
+        <button id="reportsPrev" type="button" class="btn btn-outline btn-sm">← Назад</button>
+        <span id="reportsPage" class="hint"></span>
+        <button id="reportsNext" type="button" class="btn btn-outline btn-sm">Далі →</button>
+      </div>
+      <p id="reportsResult" class="result bad"></p>
     </section>
   </main>
+
+  <!-- Скарга: повне повідомлення, перехід до матеріалу й рішення (POST /reports/{id}/decision) -->
+  <dialog id="reportViewDialog" class="dialog">
+    <form id="reportViewForm" method="dialog" class="stack">
+      <div class="card-title-row report-view-head">
+        <h2 id="rvTitle">Скарга</h2>
+        <span id="rvStatus" class="report-status"></span>
+      </div>
+      <dl class="report-facts">
+        <dt>Матеріал</dt>
+        <dd>
+          <span id="rvMaterial" class="report-material"></span>
+          <a id="rvOpenMaterial" class="btn btn-outline btn-xs" target="_blank" rel="noopener">Відкрити матеріал ↗</a>
+          <span id="rvMaterialGone" class="hint report-gone" hidden>матеріал видалено</span>
+        </dd>
+        <dt>Автор матеріалу</dt><dd id="rvAuthor"></dd>
+        <dt>Скаржиться</dt><dd id="rvReporter"></dd>
+        <dt>Подано</dt><dd id="rvDate"></dd>
+      </dl>
+      <div class="decision-report">
+        <p class="hint">Повідомлення скарги</p>
+        <p id="rvText" class="decision-text"></p>
+      </div>
+      <!-- Розглянута скарга: рішення й коментар адміна -->
+      <div id="rvDecision" class="decision-report" hidden>
+        <p class="hint">Рішення адміна</p>
+        <p id="rvDecisionText" class="decision-text"></p>
+      </div>
+      <!-- Нова скарга: коментар і рішення -->
+      <div id="rvActions" class="stack" hidden>
+        <label class="field">Коментар для автора скарги <span class="field-note">необов'язково, до 500 символів</span>
+          <textarea id="rvComment" rows="3" maxlength="500"></textarea>
+        </label>
+        <div class="report-decisions">
+          <button type="submit" value="reject" class="btn btn-outline" data-api>✕ Відхилити</button>
+          <button type="submit" value="resolve" class="btn btn-outline" data-api>✓ Задовольнити</button>
+          <button type="submit" value="remove" class="btn btn-danger" data-api>🗑 Видалити матеріал</button>
+        </div>
+      </div>
+      <p id="rvResult" class="result bad"></p>
+      <div class="dialog-actions">
+        <button type="button" id="rvClose" class="btn btn-outline">Закрити</button>
+      </div>
+    </form>
+  </dialog>
 
   <!-- Редагування матеріалу (PATCH /materials/{id}) -->
   <dialog id="editDialog" class="dialog">

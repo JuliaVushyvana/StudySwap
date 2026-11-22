@@ -94,6 +94,9 @@
             <dt>Автор</dt><dd id="mAuthor"></dd>
             <dt>Додано</dt><dd id="mDate"></dd>
           </dl>
+          <!-- Скарга (business_doc №14): зареєстрований — вікно з описом; гість — на вхід; автор свого матеріалу не бачить -->
+          <button id="mReport" type="button" class="report-link" hidden>⚠ Поскаржитися</button>
+          <p id="mReportNote" class="result ok report-note"></p>
           <p id="mAccessNote" class="hint"></p>
           <button id="mDelete" class="btn btn-danger btn-block" data-api hidden>Видалити матеріал</button>
         </aside>
@@ -129,6 +132,23 @@
     </section>
 
   </main>
+
+  <!-- Подання скарги (POST /reports) -->
+  <dialog id="reportDialog" class="dialog">
+    <form id="reportForm" method="dialog" class="stack">
+      <h2 id="reportTitle">Скарга на матеріал</h2>
+      <label class="field">Що не так із матеріалом?
+        <textarea id="reportText" rows="4" maxlength="1000" placeholder="Наприклад: чужа робота, видана за власну; матеріал не відповідає предмету; образливий зміст"></textarea>
+        <span id="reportCounter" class="field-note">0 / 1000</span>
+      </label>
+      <p class="hint report-hint">Скаргу розгляне адміністратор платформи. Про рішення ви дізнаєтесь зі сповіщень 🔔</p>
+      <p id="reportResult" class="result bad"></p>
+      <div class="dialog-actions">
+        <button type="button" id="reportCancel" class="btn btn-outline">Скасувати</button>
+        <button type="submit" class="btn btn-primary" data-api>Надіслати</button>
+      </div>
+    </form>
+  </dialog>
 
   <script src="lib/http.js"></script>
   <script src="lib/idempotency.js"></script>
