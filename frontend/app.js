@@ -872,6 +872,15 @@
     $('editCancel').addEventListener('click', () => $('editDialog').close());
   }
 
+  // ---------- Кнопка «Знайти матеріал →»: пошук посередині екрана, курсор у полі ----------
+  document.querySelectorAll('a[href="#searchInput"]').forEach((link) => link.addEventListener('click', (event) => {
+    const input = $('searchInput');
+    if (!input) return;
+    event.preventDefault();
+    input.closest('form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    input.focus({ preventScroll: true });
+  }));
+
   // ---------- Порожній пошук: не відправляємо, просимо вписати текст ----------
   document.querySelectorAll('form[action="search.html"]').forEach((form) => {
     const input = form.querySelector('input[name="q"]');
