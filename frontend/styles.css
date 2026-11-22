@@ -48,11 +48,19 @@ a { color: inherit; }
 .dot.ok { background: var(--ok); box-shadow: 0 0 0 4px #1f9d5522; }
 .dot.bad { background: var(--bad); box-shadow: 0 0 0 4px #d9302522; }
 
+.bell-wrap { position: relative; display: inline-flex; }
 .bell {
   position: relative; width: 48px; height: 48px; border-radius: 50%; background: var(--card);
-  display: inline-grid; place-items: center; font-size: 20px;
+  display: inline-grid; place-items: center; font-size: 20px; border: 0; padding: 0; cursor: pointer;
 }
-.bell i { position: absolute; top: 9px; right: 10px; width: 10px; height: 10px; border-radius: 50%; background: #e5484d; }
+.bell:hover, .bell[aria-expanded="true"] { box-shadow: 0 0 0 3px var(--chip-bg); }
+.bell:focus-visible { outline: 0; box-shadow: 0 0 0 4px #3b4bdb33; }
+/* Лічильник непрочитаних; без непрочитаних прихований */
+.bell i {
+  position: absolute; top: 2px; right: 0; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
+  border-radius: 999px; background: #e5484d; color: #fff; font: 700 11px/18px var(--text); font-style: normal;
+  box-shadow: 0 0 0 2px var(--bg); /* обвідка кольору фону: лічильник відокремлюється від кола */
+}
 
 /* ---------- Кнопки ---------- */
 .btn {
@@ -497,3 +505,27 @@ body[data-role="user"] .docx-page, body[data-role="admin"] .docx-page, body[data
 .comment-delete { margin-left: auto; border: 0; background: none; padding: 0; font: 600 13px var(--text); color: var(--bad); cursor: pointer; }
 .comment-delete:hover { text-decoration: underline; }
 .comment-delete:disabled { opacity: .5; cursor: default; text-decoration: none; }
+
+/* ---------- Сповіщення: спливне вікно під дзвіночком ---------- */
+.notif-panel {
+  position: absolute; top: calc(100% + 10px); right: 0; z-index: 50; width: 360px; max-width: calc(100vw - 32px);
+  background: var(--card); border-radius: 16px; box-shadow: 0 12px 40px #12152b2e; overflow: hidden;
+}
+.notif-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.notif-head b { font: 800 15px var(--display); }
+.notif-read-all { border: 0; background: none; padding: 0; font: 600 13px var(--text); color: var(--primary); cursor: pointer; }
+.notif-read-all:hover { text-decoration: underline; }
+.notif-read-all:disabled { color: var(--muted); cursor: default; text-decoration: none; }
+.notif-list { list-style: none; margin: 0; padding: 0; max-height: 380px; overflow-y: auto; }
+.notif-item {
+  display: grid; grid-template-columns: 10px 1fr; gap: 10px; width: 100%; padding: 12px 16px; border: 0;
+  border-bottom: 1px solid var(--line); background: none; text-align: left; font: 14px/1.4 var(--text); color: var(--ink); cursor: pointer;
+}
+.notif-item:hover { background: var(--head); }
+.notif-item.unread { background: #f3f4ff; }
+.notif-item.unread:hover { background: var(--chip-bg); }
+.notif-dot { width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; }
+.notif-item.unread .notif-dot { background: var(--primary); }
+.notif-time { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; }
+.notif-empty { margin: 0; padding: 24px 16px; color: var(--muted); font-size: 14px; text-align: center; }
+.notif-error { margin: 0; padding: 0 16px 12px; font-size: 13px; }

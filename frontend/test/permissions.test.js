@@ -20,10 +20,12 @@ test('гість: каталог, сторінка матеріалу й пер�
   assert.equal(can(null, P.FILE_READ), false);
   assert.equal(can(null, P.MATERIAL_CREATE), false);
   assert.equal(can(null, P.COMMENT_CREATE), false);
+  assert.equal(can(null, P.NOTIFICATION_READ), false);
 });
 
 test('користувач: скачує й додає, змінює лише своє', () => {
   assert.equal(can(julia, P.FILE_READ), true);
+  assert.equal(can(julia, P.NOTIFICATION_READ), true);
   assert.equal(canManageMaterial(anna, annasMaterial, 'delete'), true);
   assert.equal(canManageMaterial(julia, annasMaterial, 'delete'), false);
   assert.equal(can(julia, P.COMMENT_DELETE_ANY), false);

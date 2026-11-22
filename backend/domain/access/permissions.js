@@ -10,6 +10,7 @@ const Permission = Object.freeze({
   FILE_PREVIEW: 'file:preview',               // переглянути PDF / Word / TXT на сайті (без скачування)
   FILE_READ: 'file:read',                     // скачати файл матеріалу
   COMMENT_CREATE: 'comment:create',           // писати коментарі (модуль discussion)
+  NOTIFICATION_READ: 'notification:read',     // бачити свої сповіщення (модуль notifications)
   MATERIAL_CREATE: 'material:create',         // додати матеріал
   MATERIAL_UPDATE_OWN: 'material:update:own', // змінити свій матеріал
   MATERIAL_DELETE_OWN: 'material:delete:own', // видалити свій матеріал
@@ -25,7 +26,7 @@ const P = Permission;
 // Гість бачить каталог, сторінку матеріалу й перегляд документа на сайті, але не скачує файл і не коментує
 // (business_doc №10: писати коментарі — лише зареєстровані)
 const GUEST = [P.MATERIAL_LIST, P.MATERIAL_READ, P.FILE_PREVIEW];
-const USER = [...GUEST, P.FILE_READ, P.COMMENT_CREATE, P.MATERIAL_CREATE, P.MATERIAL_UPDATE_OWN, P.MATERIAL_DELETE_OWN];
+const USER = [...GUEST, P.FILE_READ, P.COMMENT_CREATE, P.NOTIFICATION_READ, P.MATERIAL_CREATE, P.MATERIAL_UPDATE_OWN, P.MATERIAL_DELETE_OWN];
 const ADMIN = [...USER, P.MATERIAL_UPDATE_ANY, P.MATERIAL_DELETE_ANY, P.COMMENT_DELETE_ANY, P.REPORT_REVIEW, P.USER_BLOCK];
 const SUPERADMIN = [...ADMIN, P.USER_ROLE_MANAGE];
 

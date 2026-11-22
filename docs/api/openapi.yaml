@@ -6,7 +6,7 @@ info:
     Контракт API платформи StudySwap для обміну навчальними матеріалами.
     Базовий CRUD для ресурсу «Матеріал» (контекст «Каталог матеріалів»)
     і реєстрація, вхід та вихід (контекст «Користувачі та доступ»).
-    Коментарі під матеріалами (контекст «Обговорення»).
+    Коментарі під матеріалами (контекст «Обговорення») і сповіщення (контекст «Сповіщення»).
 
     Захищені запити передають токен із `POST /auth/login` у заголовку `Authorization: Bearer <JWT>`.
     Без дійсного токена (відсутній, підроблений, прострочений або відкликаний після `POST /auth/logout`)
@@ -32,6 +32,8 @@ tags:
     description: Каталог навчальних матеріалів
   - name: Comments
     description: Коментарі під матеріалами
+  - name: Notifications
+    description: Сповіщення користувача (новий коментар, результат розгляду скарги)
   - name: Health
     description: Службові ендпоїнти
 
@@ -442,6 +444,92 @@ paths:
                 code: COMMENT_NOT_FOUND
                 details: null
                 requestId: 5e6f7a8b-9c0d-4e1f-a2b3-c4d5e6f7a8b9
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: Мої сповіщення
+      description: |
+        Останні 50 сповіщень користувача, спочатку нові, і кількість непрочитаних (для лічильника на дзвіночку).
+        Події: новий коментар під вашим матеріалом (`new_comment`), вашу скаргу розглянуто (`report_result`).
+      operationId: listNotifications
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Сповіщення (порожній список, якщо подій немає)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /notifications/{id}/read:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Ідентифікатор сповіщення
+        schema:
+          type: integer
+          minimum: 1
+        example: 12
+    post:
+      tags: [Notifications]
+      summary: Позначити сповіщення прочитаним
+      description: Повтор безпечний (уже прочитане лишається прочитаним), тому Idempotency-Key не потрібен.
+      operationId: markNotificationRead
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Позначено (тіла відповіді немає)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Сповіщення немає або воно чуже (NOTIFICATION_NOT_FOUND)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: NotFound
+                code: NOTIFICATION_NOT_FOUND
+                details: null
+                requestId: 5e6f7a8b-9c0d-4e1f-a2b3-c4d5e6f7a8b9
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /notifications/read-all:
+    post:
+      tags: [Notifications]
+      summary: Позначити всі сповіщення прочитаними
+      description: Повтор безпечний, тому Idempotency-Key не потрібен.
+      operationId: markAllNotificationsRead
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Позначено (тіла відповіді немає)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -1039,6 +1127,47 @@ components:
         total:
           type: integer
 
+    NotificationResponse:
+      type: object
+      required: [id, kind, message, link, createdAt, read]
+      properties:
+        id:
+          type: integer
+        kind:
+          type: string
+          enum: [new_comment, report_result]
+        message:
+          type: string
+          description: Готовий текст для показу
+        link:
+          type: string
+          nullable: true
+          description: Шлях ресурсу API, до якого веде сповіщення (наприклад, /materials/100); null — без переходу
+        createdAt:
+          type: string
+          format: date-time
+        read:
+          type: boolean
+      example:
+        id: 12
+        kind: new_comment
+        message: Новий коментар від Julia до «Нормалізація БД»
+        link: /materials/100
+        createdAt: '2026-11-23T09:30:00Z'
+        read: false
+
+    NotificationListResponse:
+      type: object
+      required: [items, unread]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationResponse'
+        unread:
+          type: integer
+          description: Скільки всього непрочитаних (не лише серед items)
+
     RegisterRequest:
       type: object
       additionalProperties: false
@@ -1166,7 +1295,7 @@ components:
         - ValidationError (400), коментарі: TEXT_REQUIRED, TEXT_TOO_LONG, UNKNOWN_FIELD, INVALID_BODY;
         - Unauthorized (401): UNAUTHORIZED, INVALID_CREDENTIALS;
         - Forbidden (403): FORBIDDEN;
-        - NotFound (404): MATERIAL_NOT_FOUND, COMMENT_NOT_FOUND, ROUTE_NOT_FOUND;
+        - NotFound (404): MATERIAL_NOT_FOUND, COMMENT_NOT_FOUND, NOTIFICATION_NOT_FOUND, ROUTE_NOT_FOUND;
         - Conflict (409): IDEMPOTENCY_KEY_REUSED, LOGIN_TAKEN, NICKNAME_TAKEN, EMAIL_TAKEN;
         - TooManyRequests (429): RATE_LIMITED;
         - InternalError (500): code = null;

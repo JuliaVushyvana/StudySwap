@@ -6,7 +6,11 @@ const { validateCreate, parseId, toResponse } = require('./commentDto');
 
 // Матеріал (чи він є, хто автор) питаємо в модуля catalog через його публічний сервіс (materialService):
 // його get() уже відповідає 404 MATERIAL_NOT_FOUND для неіснуючого чи видаленого матеріалу.
-function createCommentService({ commentRepository, materialService, idempotencyService, accessPolicy, userDirectory = null, now = () => new Date() }) {
+// notifier — публічний інтерфейс модуля notifications (notificationService); без нього сповіщення не надсилаються.
+function createCommentService({
+  commentRepository, materialService, idempotencyService, accessPolicy,
+  notifier = null, userDirectory = null, now = () => new Date(), logger = console,
+}) {
   const { Permission, can } = accessPolicy;
 
   // Автор показується з актуальним нікнеймом, як і в матеріалах; збережена копія — запасний варіант
@@ -25,7 +29,24 @@ function createCommentService({ commentRepository, materialService, idempotencyS
     const comment = thread.addComment(user, body.text.trim());
     comment.createdAt = now();
     comment.id = commentRepository.insert(material.id, comment);
+    if (thread.shouldNotifyAuthor(comment)) notifyAuthor(material, user);
     return respond(comment, material.id);
+  };
+
+  // Коментар уже збережено: збій сповіщення не має перетворитись на 500, інакше клієнт повторить запит,
+  // а idempotencyService не запам'ятав результат — і коментар задублюється
+  const notifyAuthor = (material, commenter) => {
+    if (!notifier) return;
+    try {
+      notifier.notify({
+        recipientId: material.authorId,
+        kind: notifier.Kind.NEW_COMMENT,
+        message: `Новий коментар від ${commenter.nickname} до «${material.title}»`,
+        link: `/materials/${material.id}`,
+      });
+    } catch (err) {
+      logger.warn('[discussion] не вдалося надіслати сповіщення про коментар:', err.message);
+    }
   };
 
   return {
