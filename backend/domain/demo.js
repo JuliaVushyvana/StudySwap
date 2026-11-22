@@ -12,7 +12,7 @@ const born = new Date('2005-03-14');
 
 // 1. Користувачі та доступ
 const anna  = new User({ id: 1, nickname: 'Anna', login: 'anna_k', email: 'anna@uni.ua', passwordHash: 'x', birthDate: born });
-const ivan  = new User({ id: 2, nickname: 'Ivan', login: 'ivan_p', email: 'ivan@uni.ua', passwordHash: 'x', birthDate: born });
+const julia = new User({ id: 2, nickname: 'Julia', login: 'julia_v', email: 'julia@uni.ua', passwordHash: 'x', birthDate: born });
 const admin = new User({ id: 3, nickname: 'Admin', login: 'admin1', email: 'admin@uni.ua', passwordHash: 'x', birthDate: born, role: Role.ADMIN });
 
 const token = new PasswordResetToken({ tokenHash: 'h', userId: anna.id });
@@ -41,7 +41,7 @@ console.log('4) Матеріалів у профілі Anna:', UserProfile.build
 
 // 5. Обговорення -> Сповіщення
 const thread = new CommentThread({ materialId: material.id, materialAuthorId: anna.id });
-const comment = thread.addComment(ivan, 'Дуже допомогло перед екзаменом!');
+const comment = thread.addComment(julia, 'Дуже допомогло перед екзаменом!');
 const notifications = [];
 if (thread.shouldNotifyAuthor(comment)) {
   notifications.push(new Notification({
@@ -52,7 +52,7 @@ if (thread.shouldNotifyAuthor(comment)) {
 console.log('5) Коментарів:', thread.list().length, '| Сповіщення для Anna:', notifications[0].message);
 
 // 6. Модерація: скарга -> рішення адміна -> виконання в інших контекстах
-const report = new Report({ id: 1, materialId: material.id, materialAuthorId: anna.id, reporterId: ivan.id, text: 'Чужий конспект без дозволу автора' });
+const report = new Report({ id: 1, materialId: material.id, materialAuthorId: anna.id, reporterId: julia.id, text: 'Чужий конспект без дозволу автора' });
 const decision = report.resolve(admin, new ModerationDecision({ deleteMaterial: true, blockAuthor: true, comment: 'Порушення авторських прав' }));
 
 if (decision.deleteMaterial) { material.delete(admin); thread.close(); }
@@ -70,7 +70,7 @@ try {
   console.log('   Повторний розгляд:', e.message);
 }
 try {
-  thread.addComment(ivan, 'Ще один коментар');
+  thread.addComment(julia, 'Ще один коментар');
 } catch (e) {
   console.log('   Новий коментар:', e.message);
 }

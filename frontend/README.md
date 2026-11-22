@@ -1,6 +1,6 @@
 # Фронтенд StudySwap
 
-Звичайна HTML-сторінка без збирання (`index.html` + `styles.css` + `app.js` + `lib/`). Запуск:
+Звичайні HTML-сторінки без збирання: головна (`index.html` + `app.js`) і вхід/реєстрація (`auth.html` + `auth.js`, вкладки `#login` і `#register`), спільні `styles.css` і `lib/` (токен входу зберігає `lib/session.js`). Запуск:
 
 1. Запустити бекенд: `cd backend && npm start` (http://localhost:3000).
 2. Відкрити `frontend/index.html` у браузері (подвійний клік по файлу).

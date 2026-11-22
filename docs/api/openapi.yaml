@@ -4,7 +4,12 @@ info:
   version: 0.1.0
   description: |
     Контракт API платформи StudySwap для обміну навчальними матеріалами.
-    Базовий CRUD для ресурсу «Матеріал» (контекст «Каталог матеріалів»).
+    Базовий CRUD для ресурсу «Матеріал» (контекст «Каталог матеріалів»)
+    і реєстрація, вхід та вихід (контекст «Користувачі та доступ»).
+
+    Захищені запити передають токен із `POST /auth/login` у заголовку `Authorization: Bearer <JWT>`.
+    Без дійсного токена (відсутній, підроблений, прострочений або відкликаний після `POST /auth/logout`)
+    користувач вважається гостем, і захищений ендпоїнт відповідає `401`.
 
     Усі помилки повертаються в єдиному форматі `ErrorResponse`.
 
@@ -20,6 +25,8 @@ servers:
     description: Локальний сервер розробки
 
 tags:
+  - name: Auth
+    description: Реєстрація, вхід і вихід
   - name: Materials
     description: Каталог навчальних матеріалів
   - name: Health
@@ -51,6 +58,83 @@ paths:
                 status: degraded
                 checks:
                   database: fail
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Зареєструватися
+      description: |
+        Створює акаунт із роллю `user`. Роль у тілі не приймається (`400 UNKNOWN_FIELD`).
+        nickname, login і email унікальні без урахування регістру. Пароль зберігається лише як bcrypt-хеш.
+        Після реєстрації клієнт входить через `POST /auth/login`.
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Акаунт створено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/AccountConflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Увійти за логіном або поштою
+      description: |
+        Якщо значення `login` містить `@`, пошук іде за поштою, інакше — за логіном.
+        Неіснуючий акаунт і неправильний пароль дають однакову відповідь `401 INVALID_CREDENTIALS`.
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Вхід виконано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/InvalidCredentials'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Вийти
+      description: Відкликає поточний токен; далі з ним користувач — гість.
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Вихід виконано
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   /materials:
     post:
@@ -461,6 +545,115 @@ components:
           type: boolean
           description: true — БД недоступна, дані з останньої збереженої копії каталогу й можуть бути застарілими
 
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required: [nickname, login, email, password, birthDate]
+      properties:
+        nickname:
+          type: string
+          minLength: 3
+          maxLength: 30
+        login:
+          type: string
+          minLength: 5
+          maxLength: 32
+          pattern: '^[A-Za-z0-9_.-]+$'
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: Не довше 72 байт у UTF-8 (обмеження bcrypt)
+        birthDate:
+          type: string
+          format: date
+          description: Дата в минулому, YYYY-MM-DD
+      example:
+        nickname: Olha
+        login: olha_m
+        email: olha@uni.ua
+        password: secret123
+        birthDate: '2004-05-01'
+
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [login, password]
+      properties:
+        login:
+          type: string
+          description: Логін або пошта
+        password:
+          type: string
+          format: password
+      example:
+        login: olha_m
+        password: secret123
+
+    UserResponse:
+      type: object
+      description: Дані акаунта. passwordHash ніколи не повертається.
+      required: [id, nickname, login, email, birthDate, avatarUrl, role]
+      properties:
+        id:
+          type: integer
+        nickname:
+          type: string
+        login:
+          type: string
+        email:
+          type: string
+          format: email
+        birthDate:
+          type: string
+          format: date
+        avatarUrl:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [user, admin]
+      example:
+        id: 4
+        nickname: Olha
+        login: olha_m
+        email: olha@uni.ua
+        birthDate: '2004-05-01'
+        avatarUrl: null
+        role: user
+
+    LoginResponse:
+      type: object
+      required: [accessToken, tokenType, expiresIn, user]
+      properties:
+        accessToken:
+          type: string
+          description: JWT (HS256) для заголовка Authorization
+        tokenType:
+          type: string
+          enum: [Bearer]
+        expiresIn:
+          type: integer
+          description: Скільки секунд діє токен
+        user:
+          $ref: '#/components/schemas/UserResponse'
+      example:
+        accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0Iiwicm9sZSI6InVzZXIifQ.signature
+        tokenType: Bearer
+        expiresIn: 3600
+        user:
+          id: 4
+          nickname: Olha
+          login: olha_m
+          email: olha@uni.ua
+          birthDate: '2004-05-01'
+          avatarUrl: null
+          role: user
+
     ErrorResponse:
       type: object
       description: |
@@ -472,10 +665,13 @@ components:
           INVALID_TYPE, FILE_REQUIRED, INVALID_FILE, EMPTY_UPDATE, UNKNOWN_FIELD,
           INVALID_BODY, INVALID_JSON, QUERY_TOO_LONG, INVALID_QUERY, INVALID_SORT, INVALID_PAGE;
         - ValidationError (400), Idempotency-Key: IDEMPOTENCY_KEY_REQUIRED, INVALID_IDEMPOTENCY_KEY;
-        - Unauthorized (401): UNAUTHORIZED;
+        - ValidationError (400), /auth/*: NICKNAME_REQUIRED, INVALID_NICKNAME, LOGIN_REQUIRED, INVALID_LOGIN,
+          EMAIL_REQUIRED, INVALID_EMAIL, PASSWORD_REQUIRED, PASSWORD_TOO_SHORT, PASSWORD_TOO_LONG,
+          BIRTH_DATE_REQUIRED, INVALID_BIRTH_DATE, UNKNOWN_FIELD, INVALID_BODY;
+        - Unauthorized (401): UNAUTHORIZED, INVALID_CREDENTIALS;
         - Forbidden (403): FORBIDDEN;
         - NotFound (404): MATERIAL_NOT_FOUND, ROUTE_NOT_FOUND;
-        - Conflict (409): IDEMPOTENCY_KEY_REUSED;
+        - Conflict (409): IDEMPOTENCY_KEY_REUSED, LOGIN_TAKEN, NICKNAME_TAKEN, EMAIL_TAKEN;
         - TooManyRequests (429): RATE_LIMITED;
         - InternalError (500): code = null;
         - ServiceUnavailable (503): REQUEST_TIMEOUT, CATALOG_UNAVAILABLE, SERVICE_UNAVAILABLE.
@@ -517,6 +713,28 @@ components:
           type: string
 
   responses:
+    AccountConflict:
+      description: nickname, login або email уже зайняті
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Conflict
+            code: LOGIN_TAKEN
+            details: null
+            requestId: 6a7b8c9d-0e1f-4a2b-8c3d-4e5f6a7b8c9d
+    InvalidCredentials:
+      description: Неправильний логін (пошта) або пароль
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Unauthorized
+            code: INVALID_CREDENTIALS
+            details: null
+            requestId: 7b8c9d0e-1f2a-4b3c-9d4e-5f6a7b8c9d0e
     Conflict:
       description: Idempotency-Key уже використано з іншим тілом запиту
       headers:

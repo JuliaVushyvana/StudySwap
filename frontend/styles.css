@@ -143,6 +143,22 @@ input:focus, select:focus, textarea:focus { outline: 0; border-color: var(--prim
 .banner #bannerText { flex: 1; }
 .banner .btn-outline { border-color: #a1251c; color: #a1251c; }
 
+/* ---------- Акаунт: вхід і реєстрація ---------- */
+.account { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; }
+.account[hidden], [hidden] { display: none !important; }
+.avatar {
+  width: 36px; height: 36px; border-radius: 50%; display: inline-grid; place-items: center;
+  background: var(--chip-bg); color: var(--chip-ink); font: 800 15px var(--display);
+}
+.tabs { display: flex; gap: 8px; margin-bottom: 24px; background: var(--head); padding: 6px; border-radius: 14px; }
+.tab {
+  flex: 1; border: 0; background: transparent; padding: 12px; border-radius: 10px; cursor: pointer;
+  font: 700 16px var(--text); color: var(--muted); text-align: center; text-decoration: none;
+}
+.tab.active { background: var(--card); color: var(--ink); box-shadow: 0 1px 4px #12152b14; }
+.auth-form { display: grid; gap: 18px; }
+.auth-form .two { gap: 18px; }
+
 /* ---------- Журнал ---------- */
 #log {
   font: 13px/1.6 'JetBrains Mono', Consolas, monospace; background: #12152b; color: #cfd3e6;

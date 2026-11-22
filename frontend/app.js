@@ -9,6 +9,7 @@
 
   const { fetchWithResilience, readError } = window.StudyHttp;
   const { getOrReuseKey, forgetKey } = window.StudyIdem;
+  const Session = window.StudySession;
   const $ = (id) => document.getElementById(id);
 
   // ---------- Журнал ----------
@@ -160,6 +161,53 @@
     loadMaterials();
   });
 
+  // ---------- Акаунт: шапка й вихід (вхід і реєстрація — на auth.html) ----------
+  let session = Session.load();
+
+  function renderSession() {
+    const user = session && session.user;
+    $('guestLinks').hidden = Boolean(user);
+    $('account').hidden = !user;
+    if (user) {
+      $('accountName').textContent = user.role === 'admin' ? `${user.nickname} (адмін)` : user.nickname;
+      $('accountAvatar').textContent = user.nickname.charAt(0).toUpperCase();
+    }
+    $('authorHint').innerHTML = '';
+    if (user) {
+      $('authorHint').textContent = `Від імені: ${user.nickname}`;
+    } else {
+      $('authorHint').append('Щоб додати матеріал, ');
+      const link = document.createElement('a');
+      link.href = 'auth.html#login';
+      link.textContent = 'увійдіть або зареєструйтесь';
+      $('authorHint').append(link, '.');
+    }
+  }
+
+  function dropSession(reason) {
+    Session.clear();
+    session = null;
+    renderSession();
+    if (reason) showResult(reason, false);
+  }
+
+  $('logoutBtn').addEventListener('click', async () => {
+    const { token } = session || {};
+    try {
+      const res = await callApi('POST /auth/logout', `${API_URL}/auth/logout`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status !== 204 && res.status !== 401) throw await readError(res);
+    } catch (e) {
+      // Локально виходимо в будь-якому разі; на сервері токен сам згасне після строку дії
+      log(`Вихід: сервер не підтвердив (${e.message || e.code})`, 'warn');
+    }
+    dropSession();
+    log('Вихід з акаунта', 'ok');
+  });
+
+  renderSession();
+
   // ---------- Створення матеріалу ----------
   function readForm() {
     const f = new FormData($('createForm'));
@@ -173,16 +221,18 @@
     };
     const description = f.get('description').trim();
     if (description) payload.description = description; // поле необов'язкове за контрактом
-    return { payload, token: f.get('token') };
+    return { payload, token: session && session.token };
   }
 
   async function postMaterial(payload, token, idempotencyKey, label = 'POST /materials') {
-    return callApi(label, `${API_URL}/materials`, {
+    const res = await callApi(label, `${API_URL}/materials`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: JSON.stringify(payload),
       idempotencyKey,
     });
+    if (res.status === 401 && token) dropSession('Сесія завершилась — увійдіть знову'); // токен прострочено або відкликано
+    return res;
   }
 
   function showResult(text, ok) {

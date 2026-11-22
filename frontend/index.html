@@ -18,6 +18,16 @@
       <button id="healthBtn" class="btn btn-outline btn-sm" data-api>Перевірити /health</button>
       <a href="#add" class="btn btn-primary">+ Додати матеріал</a>
       <span class="bell" aria-hidden="true">🔔<i></i></span>
+      <!-- Гість: кнопки входу й реєстрації (окрема сторінка auth.html); після входу: нікнейм і «Вийти» -->
+      <span id="guestLinks" class="account">
+        <a href="auth.html#login" class="btn btn-outline">Увійти</a>
+        <a href="auth.html#register" class="btn btn-outline">Реєстрація</a>
+      </span>
+      <span id="account" class="account" hidden>
+        <span class="avatar" id="accountAvatar" aria-hidden="true"></span>
+        <span id="accountName"></span>
+        <button id="logoutBtn" class="btn btn-outline btn-sm" data-api>Вийти</button>
+      </span>
     </div>
   </header>
 
@@ -100,13 +110,7 @@
           <input name="fileId" value="f-free01">
         </label>
 
-        <label class="field">Від імені (тестовий вхід)
-          <select name="token">
-            <option value="dev-token-anna">Anna</option>
-            <option value="dev-token-ivan">Ivan</option>
-            <option value="dev-token-admin">Admin</option>
-          </select>
-        </label>
+        <p id="authorHint" class="hint"></p>
 
         <button type="submit" class="btn btn-primary btn-block" data-api>Застосувати</button>
         <button type="button" id="doubleBtn" class="btn btn-outline btn-block" data-api>Демо: подвійний клік (2 POST одночасно)</button>
@@ -125,6 +129,7 @@
   <script src="lib/http.js"></script>
   <script src="lib/idempotency.js"></script>
   <script src="lib/degraded.js"></script>
+  <script src="lib/session.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
