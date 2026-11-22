@@ -1,0 +1,33 @@
+# Головний CI: на кожен push і pull request перевіряє бекенд і фронтенд
+# через спільний reusable workflow (ci-reusable.yml).
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# Мінімальні права токена: лише читання коду
+permissions:
+  contents: read
+
+# Новий запуск для тієї ж гілки/PR скасовує старий, щоб не витрачати хвилини
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: backend
+    uses: ./.github/workflows/ci-reusable.yml
+    with:
+      working-directory: backend
+      node-version: '22'
+      coverage: true
+
+  frontend:
+    name: frontend
+    uses: ./.github/workflows/ci-reusable.yml
+    with:
+      working-directory: frontend
+      node-version: '22'
+      build: true
