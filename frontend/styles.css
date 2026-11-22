@@ -293,7 +293,7 @@ body[data-role="admin"] .avatar { background: #fee4e2; color: #b42318; }
 .material-meta { margin: 0; color: var(--muted); font-size: 16px; }
 .material-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 36px; align-items: start; }
 .material-description { font-size: 17px; white-space: pre-line; }
-.material-side { display: grid; gap: 14px; padding: 22px; border-radius: 18px; background: var(--head); }
+.material-side { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 22px; border-radius: 18px; background: var(--head); }
 .material-file { display: flex; gap: 12px; align-items: center; }
 .material-file .hint { margin: 2px 0 0; }
 .file-icon { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: #fff; font-size: 22px; }
@@ -398,3 +398,41 @@ select {
 .role-chip.admin { background: #fee4e2; color: #b42318; }
 .role-chip.superadmin { background: #efe3fb; color: #7a2ec9; }
 .roles-card .hint { margin: -6px 0 18px; line-height: 1.5; }
+
+/* ---------- Файл на сторінці матеріалу: перегляд / скачування / замок для гостя ---------- */
+.file-actions { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.file-locked { padding: 14px; border-radius: 14px; background: #fff; border: 1.5px dashed #d6d9e8; }
+.file-locked p { margin: 0 0 12px; font-size: 14px; color: var(--ink); }
+.preview-card { margin-top: 24px; }
+.preview-body { border-radius: 16px; overflow: hidden; background: var(--head); }
+.preview-frame { display: block; width: 100%; height: 78vh; border: 0; background: #fff; }
+.preview-video { display: block; width: 100%; max-height: 78vh; background: #000; }
+.preview-audio { display: block; width: 100%; padding: 18px; }
+.preview-image { display: block; max-width: 100%; margin: 0 auto; }
+.preview-text { margin: 0; padding: 20px; max-height: 70vh; overflow: auto; white-space: pre-wrap; font: 14px/1.6 Consolas, monospace; background: #fff; }
+.combo-other { color: var(--muted); font-style: italic; border-top: 1px solid var(--line); margin-top: 4px; }
+
+/* ---------- Перегляд Word і примітка для гостя ---------- */
+.guest-note { margin: 0; font-size: 13px; }
+.guest-note a { color: var(--primary); font-weight: 600; }
+.preview-docx { background: #e9ebf3; padding: 24px; max-height: 80vh; overflow: auto; }
+.docx-page {
+  max-width: 820px; margin: 0 auto; background: #fff; padding: 56px 64px; border-radius: 6px;
+  box-shadow: 0 6px 24px -10px #12152b40; font: 15px/1.6 'Times New Roman', Georgia, serif; color: #111;
+  user-select: none; /* гість не виділяє й не копіює текст перегляду */
+}
+body[data-role="user"] .docx-page, body[data-role="admin"] .docx-page, body[data-role="superadmin"] .docx-page { user-select: text; }
+.docx-page p { margin: 0 0 8px; }
+.docx-page h1, .docx-page h2, .docx-page h3, .docx-page h4 { font-family: Arial, sans-serif; margin: 18px 0 10px; line-height: 1.25; }
+.docx-page ul { margin: 0 0 8px; padding-left: 24px; }
+.docx-img { max-width: 100%; height: auto; }
+.docx-table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+.docx-table td { border: 1px solid #999; padding: 6px 8px; vertical-align: top; }
+@media (max-width: 720px) { .docx-page { padding: 28px 20px; } }
+
+/* Заміна файлу у вікні редагування */
+.edit-file { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1.5px solid #d6d9e8; border-radius: var(--radius-sm); }
+.edit-file-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.edit-file .btn { flex: none; cursor: pointer; }
+.bad-note { color: var(--bad); font-weight: 600; }
+.dialog { max-height: 92vh; overflow: auto; }

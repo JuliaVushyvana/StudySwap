@@ -7,6 +7,13 @@ const { ValidationError, UnauthorizedError, NotFoundError } = require('../errors
 const MB = 1024 * 1024;
 const NAME_MAX = 255;
 
+// Що можна переглянути на сайті без скачування (і гостю теж). Медіа та архіви — лише скачування для зареєстрованих
+const PREVIEW_TYPES = Object.freeze({
+  pdf: 'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  txt: 'text/plain; charset=utf-8',
+});
+
 // Перевірка формату й розміру до запису на диск (business_doc.md, вимога №9)
 function validateUpload({ fileName, sizeBytes }) {
   if (typeof fileName !== 'string' || !fileName.trim() || fileName.length > NAME_MAX) {
@@ -27,6 +34,15 @@ function validateUpload({ fileName, sizeBytes }) {
 function createStorageService({ fileRepository, fileStore, accessPolicy, now = () => new Date() }) {
   const { Permission, can } = accessPolicy;
   const toResponse = (file) => ({ id: file.id, fileName: file.originalName, sizeBytes: file.sizeBytes, url: file.url() });
+
+  // Запис і вміст файлу або 404
+  const locate = (fileId) => {
+    const file = /^[\w-]+$/.test(String(fileId)) ? fileRepository.findById(fileId) : null;
+    if (!file) throw new NotFoundError('FILE_NOT_FOUND');
+    const path = fileStore.pathIfExists(file.id);
+    if (!path) throw new NotFoundError('FILE_CONTENT_MISSING'); // запис є, а вмісту немає (тестові дані)
+    return { path, fileName: file.originalName, mimeType: file.mimeType };
+  };
 
   return {
     // Дані про завантажений файл або null, якщо такого fileId немає
@@ -52,16 +68,23 @@ function createStorageService({ fileRepository, fileStore, accessPolicy, now = (
       return toResponse(file);
     },
 
-    // GET /files/:id: лише для зареєстрованих, як і сама сторінка матеріалу
+    // GET /files/:id — скачування: лише зареєстровані
     download(user, fileId) {
-      if (!can(user, Permission.MATERIAL_READ)) throw new UnauthorizedError();
-      const file = /^[\w-]+$/.test(String(fileId)) ? fileRepository.findById(fileId) : null;
-      if (!file) throw new NotFoundError('FILE_NOT_FOUND');
-      const path = fileStore.pathIfExists(file.id);
-      if (!path) throw new NotFoundError('FILE_CONTENT_MISSING'); // запис є, а вмісту немає (тестові дані)
-      return { path, fileName: file.originalName, mimeType: file.mimeType };
+      if (!can(user, Permission.FILE_READ)) throw new UnauthorizedError();
+      return locate(fileId);
+    },
+
+    // GET /files/:id/preview — перегляд PDF / DOCX / TXT на сайті: усім, зокрема гостю
+    preview(user, fileId) {
+      if (!can(user, Permission.FILE_PREVIEW)) throw new UnauthorizedError();
+      const file = locate(fileId);
+      const ext = file.fileName.includes('.') ? file.fileName.split('.').pop().toLowerCase() : '';
+      if (!PREVIEW_TYPES[ext]) {
+        throw new ValidationError([{ field: 'file', code: 'PREVIEW_NOT_SUPPORTED', message: `Файли .${ext} не переглядаються на сайті` }]);
+      }
+      return { ...file, mimeType: PREVIEW_TYPES[ext] };
     },
   };
 }
 
-module.exports = { createStorageService, validateUpload };
+module.exports = { createStorageService, validateUpload, PREVIEW_TYPES };

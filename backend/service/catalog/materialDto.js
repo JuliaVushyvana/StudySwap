@@ -49,7 +49,8 @@ const FIELD_RULES = {
 };
 
 const CREATE_FIELDS = ['title', 'description', 'subject', 'university', 'course', 'type', 'fileId'];
-const UPDATE_FIELDS = ['title', 'description', 'subject', 'university', 'course', 'type'];
+// fileId у PATCH — заміна файлу на інший, уже завантажений через POST /files
+const UPDATE_FIELDS = ['title', 'description', 'subject', 'university', 'course', 'type', 'fileId'];
 
 // Повертає список помилок [{ field, message, code }]; порожній список — дані коректні
 function validateBody(body, allowed, { partial }) {

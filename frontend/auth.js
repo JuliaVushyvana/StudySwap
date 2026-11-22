@@ -54,7 +54,7 @@
   const describe = (e) => {
     if (MESSAGES[e.code]) return MESSAGES[e.code];
     if (e.details) return e.details.map((d) => d.message).join('; ');
-    return `${e.error}${e.code ? ` — ${e.code}` : ''} (requestId: ${e.requestId || '—'})`;
+    return `${e.error}${e.code ? ` · ${e.code}` : ''} (requestId: ${e.requestId || 'немає'})`;
   };
 
   const post = (path, body, retry = RETRY) => fetchWithResilience(`${API_URL}${path}`, {

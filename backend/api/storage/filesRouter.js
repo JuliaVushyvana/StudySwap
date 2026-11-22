@@ -2,7 +2,8 @@
 //
 // POST /files — тіло запиту = сам файл (як є, без multipart), назва — в заголовку X-File-Name
 //   (закодована encodeURIComponent, щоб працювали українські літери), тип — у Content-Type.
-// GET /files/:id — віддає файл з оригінальною назвою; потрібен вхід (Authorization: Bearer).
+// GET /files/:id — скачування з оригінальною назвою; потрібен вхід (Authorization: Bearer).
+// GET /files/:id/preview — перегляд PDF / DOCX / TXT на сайті (inline), доступний і гостю.
 
 const express = require('express');
 
@@ -16,6 +17,14 @@ function createFilesRouter({ storageService }) {
     try { fileName = decodeURIComponent(fileName); } catch { /* лишаємо як є */ }
     const buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
     res.status(201).json(storageService.upload(req.user, { fileName, mimeType: req.get('Content-Type'), buffer }));
+  });
+
+  router.get('/:id/preview', (req, res) => {
+    const file = storageService.preview(req.user, req.params.id);
+    res.set('Cache-Control', 'no-store');
+    res.type(file.mimeType);
+    res.set('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`);
+    res.sendFile(file.path);
   });
 
   router.get('/:id', (req, res) => {

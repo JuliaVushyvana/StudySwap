@@ -147,7 +147,7 @@
     const parts = [e.error];
     if (e.code) parts.push(e.code);
     if (e.details) parts.push(e.details.map((d) => `${d.field}: ${d.message}`).join('; '));
-    return `${parts.join(' — ')} (requestId: ${e.requestId || '—'})`;
+    return `${parts.join(' · ')} (requestId: ${e.requestId || 'немає'})`;
   };
 
   async function deleteMaterial(m) {
@@ -168,19 +168,10 @@
   };
   const formatDate = (iso) => (iso ? new Date(iso).toLocaleDateString('uk-UA') : '—');
 
+  // Сторінку матеріалу бачать усі; файл на ній — лише після входу
   function titleCell(m) {
     const td = cell('', 'title');
-    const a = document.createElement('a');
-    a.textContent = m.title;
-    if (Access.can(currentUser(), P.MATERIAL_READ)) {
-      a.href = `material.html?id=${m.id}`;
-    } else {
-      // Гість бачить каталог, але відкрити матеріал — лише після входу
-      a.href = `auth.html?next=${encodeURIComponent(`material.html?id=${m.id}`)}#login`;
-      a.title = 'Увійдіть, щоб відкрити матеріал';
-      a.append(Object.assign(document.createElement('span'), { className: 'lock', textContent: ' 🔒' }));
-    }
-    td.appendChild(a);
+    td.appendChild(Object.assign(document.createElement('a'), { href: `material.html?id=${m.id}`, textContent: m.title }));
     return td;
   }
 
@@ -329,7 +320,7 @@
     $('fileInput').value = '';
     $('dropzone').classList.remove('has-file', 'has-error');
     $('dzTitle').innerHTML = 'Перетягни файл сюди або <u>обери на пристрої</u>';
-    $('dzHint').textContent = 'PDF, Word, TXT, PowerPoint, ZIP — до 20–50 МБ · аудіо до 30 МБ · відео до 100 МБ';
+    $('dzHint').textContent = 'PDF, Word, TXT, PowerPoint, ZIP до 20–50 МБ · аудіо до 30 МБ · відео до 100 МБ';
   }
 
   async function uploadFile(file) {
@@ -351,7 +342,7 @@
     zone.addEventListener('drop', (e) => selectFile(e.dataTransfer.files[0]));
   }
 
-  // Предмети й університети для списків: базові + ті, що вже є в каталозі
+  // Предмети й заклади освіти для списків: базові + ті, що вже є в каталозі
   const BASE_SUBJECTS = [
     'Алгоритми', 'Архітектура ПЗ', 'Бази даних', 'Вебпрограмування', 'Вища математика',
     'Дискретна математика', 'Комп’ютерні мережі', 'ООП', 'Операційні системи', 'Фізика',
@@ -371,8 +362,8 @@
   if (page === 'add') {
     renderAddPage();
     setupDropzone();
-    const subjectCombo = window.StudyCombobox.attach($('subjectInput'), { options: BASE_SUBJECTS, newLabel: 'Новий предмет' });
-    const universityCombo = window.StudyCombobox.attach($('universityInput'), { options: BASE_UNIVERSITIES, newLabel: 'Новий університет' });
+    const subjectCombo = window.StudyCombobox.attach($('subjectInput'), { options: BASE_SUBJECTS, newLabel: 'Новий предмет', otherLabel: 'Інше (свій варіант)', otherPlaceholder: 'Впишіть свій предмет' });
+    const universityCombo = window.StudyCombobox.attach($('universityInput'), { options: BASE_UNIVERSITIES, newLabel: 'Новий заклад освіти', otherLabel: 'Інший (свій варіант)', otherPlaceholder: 'Впишіть свій заклад освіти' });
     window.StudyCombobox.attach($('courseInput'), {
       options: ['1 курс', '2 курс', '3 курс', '4 курс', '5 курс', '6 курс'],
       strict: true,
@@ -417,7 +408,7 @@
       } catch (e) {
         if (e.status === 401) renderAddPage();
         else if (e.error) showResult(`Файл не прийнято: ${e.details ? e.details.map((d) => d.message).join('; ') : describeError(e)}`, false);
-        else showResult(`Не вдалося: ${e.message}. Натисніть ще раз — дубля не буде.`, false);
+        else showResult(`Не вдалося: ${e.message}. Натисніть ще раз, дубля не буде.`, false);
       } finally {
         if (!degraded.isDegraded()) submitBtn.disabled = false;
       }
@@ -426,36 +417,110 @@
 
   // ---------- Сторінка матеріалу ----------
   // Файл віддається лише зареєстрованим, тому качаємо через запит із токеном, а не звичайним посиланням
-  async function downloadFile(file) {
-    const btn = $('mDownload');
-    btn.disabled = true;
+  // Файл беремо запитом (з токеном, якщо є), а не звичайним посиланням.
+  // mode: 'preview' — /files/{id}/preview (PDF, Word, TXT, доступно й гостю); 'download' — /files/{id} (лише зареєстровані)
+  async function fetchFileBlob(file, mode) {
+    const url = `${API_URL}${file.url}${mode === 'preview' ? '/preview' : ''}`;
+    const res = await callApi(`GET ${file.url}${mode === 'preview' ? '/preview' : ''}`, url, { headers: authHeaders(), retry: { retries: 1, timeoutMs: 120000 } });
+    if (res.status === 401) { location.href = loginUrl(); return null; }
+    if (!res.ok) {
+      const err = await readError(res);
+      $('mFileNote').textContent = err.code === 'FILE_CONTENT_MISSING'
+        ? 'Це тестовий матеріал: файлу на сервері немає.'
+        : `Не вдалося отримати файл: ${err.details ? err.details.map((d) => d.message).join('; ') : describeError(err)}`;
+      return null;
+    }
+    return res.blob();
+  }
+
+  async function withFileButtons(task) {
+    $('mPreview').disabled = true;
+    $('mDownload').disabled = true;
     $('mFileNote').textContent = '';
-    try {
-      const res = await callApi(`GET ${file.url}`, `${API_URL}${file.url}`, { headers: authHeaders(), retry: { retries: 1, timeoutMs: 120000 } });
-      if (res.status === 401) { location.replace(loginUrl()); return; }
-      if (!res.ok) {
-        const err = await readError(res);
-        $('mFileNote').textContent = err.code === 'FILE_CONTENT_MISSING'
-          ? 'Це тестовий матеріал: файлу на сервері немає.'
-          : `Не вдалося завантажити: ${describeError(err)}`;
-        return;
-      }
-      const url = URL.createObjectURL(await res.blob());
+    try { await task(); } catch (e) { $('mFileNote').textContent = `Не вдалося показати файл: ${e.message}`; }
+    finally { $('mPreview').disabled = false; $('mDownload').disabled = false; }
+  }
+
+  function downloadFile(file) {
+    return withFileButtons(async () => {
+      const blob = await fetchFileBlob(file, 'download');
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
       const a = Object.assign(document.createElement('a'), { href: url, download: file.fileName });
       document.body.appendChild(a);
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
-    } catch (e) {
-      $('mFileNote').textContent = `Не вдалося завантажити: ${e.message}`;
-    } finally {
-      btn.disabled = false;
-    }
+    });
   }
+
+  // Перегляд прямо на сторінці.
+  // PDF, Word (.docx), TXT — для всіх, через /preview. PDF показуємо без панелі браузера (без кнопок «скачати» / «друк»).
+  // Відео, аудіо, картинки — лише зареєстрованим (вони однаково можуть їх скачати).
+  const DOC_PREVIEW = ['pdf', 'docx', 'txt'];
+  const MEDIA_PREVIEW = { mp4: 'video/mp4', mp3: 'audio/mpeg', wav: 'audio/wav', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
+  let previewUrl = null;
+
+  function closePreview() {
+    $('previewCard').hidden = true;
+    $('previewBody').innerHTML = '';
+    if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
+  }
+
+  function showPreview(file, node) {
+    $('previewBody').appendChild(node);
+    $('previewTitle').textContent = `Перегляд: ${file.fileName}`;
+    $('previewCard').hidden = false;
+    $('previewCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function previewFile(file) {
+    const ext = file.fileName.includes('.') ? file.fileName.split('.').pop().toLowerCase() : '';
+    const isDoc = DOC_PREVIEW.includes(ext);
+    const media = MEDIA_PREVIEW[ext];
+    const canDownload = Access.can(currentUser(), P.FILE_READ);
+    if (!isDoc && !(media && canDownload)) {
+      let note;
+      if (canDownload) note = `Файли .${ext} на сайті не показуються. Натисніть «Скачати», щоб відкрити файл на пристрої.`;
+      else if (media) note = 'Відео, аудіо й картинки можна переглянути після входу.';
+      else if (ext === 'doc') note = 'Старий формат Word (.doc) на сайті не показується. Його можна скачати після входу.';
+      else note = `Файли .${ext} на сайті не показуються. Їх можна скачати після входу.`;
+      $('mFileNote').textContent = note;
+      return Promise.resolve();
+    }
+    return withFileButtons(async () => {
+      const raw = await fetchFileBlob(file, isDoc ? 'preview' : 'download');
+      if (!raw) return;
+      closePreview();
+      if (ext === 'txt') {
+        showPreview(file, Object.assign(document.createElement('pre'), { className: 'preview-text', textContent: await raw.text() }));
+      } else if (ext === 'docx') {
+        const box = document.createElement('div');
+        box.className = 'preview-docx';
+        await window.StudyDocx.render(await raw.arrayBuffer(), box);
+        showPreview(file, box);
+      } else if (ext === 'pdf') {
+        previewUrl = URL.createObjectURL(new Blob([raw], { type: 'application/pdf' }));
+        // #toolbar=0 ховає панель вбудованого переглядача (кнопки «скачати», «друк»)
+        showPreview(file, Object.assign(document.createElement('iframe'), { src: `${previewUrl}#toolbar=0&navpanes=0`, title: file.fileName, className: 'preview-frame' }));
+      } else {
+        previewUrl = URL.createObjectURL(new Blob([raw], { type: media }));
+        let el;
+        if (ext === 'mp4') el = Object.assign(document.createElement('video'), { src: previewUrl, controls: true, className: 'preview-video' });
+        else if (ext === 'mp3' || ext === 'wav') el = Object.assign(document.createElement('audio'), { src: previewUrl, controls: true, className: 'preview-audio' });
+        else el = Object.assign(document.createElement('img'), { src: previewUrl, alt: file.fileName, className: 'preview-image' });
+        showPreview(file, el);
+      }
+    });
+  }
+
+  // Гість: не даємо зберегти перегляд правою кнопкою (повністю заборонити збереження неможливо)
+  document.addEventListener('contextmenu', (e) => {
+    if (!Access.can(currentUser(), P.FILE_READ) && e.target.closest && e.target.closest('#previewBody')) e.preventDefault();
+  });
 
   async function loadMaterialPage() {
     const id = new URLSearchParams(location.search).get('id');
-    if (!Access.can(currentUser(), P.MATERIAL_READ)) { location.replace(loginUrl()); return; }
 
     try {
       const res = await callApi(`GET /materials/${id}`, `${API_URL}/materials/${encodeURIComponent(id)}`, { headers: authHeaders() });
@@ -475,8 +540,20 @@
       $('mAuthor').textContent = m.authorNickname;
       $('mDate').textContent = formatDate(m.createdAt);
       $('mDescription').textContent = m.description || 'Опису немає.';
-      $('mFileName').textContent = `${m.file.fileName} · ${(m.file.sizeBytes / 1024 / 1024).toFixed(1)} МБ`;
-      $('mDownload').onclick = () => downloadFile(m.file);
+      $('mFileName').textContent = `${m.file.fileName} · ${formatSize(m.file.sizeBytes)}`;
+      // Переглянути може кожен; скачати — лише зареєстровані. Гість натискає «Скачати» → вхід і повернення сюди
+      const canDownload = Access.can(currentUser(), P.FILE_READ);
+      $('mGuestNote').hidden = canDownload;
+      $('mPreview').onclick = () => previewFile(m.file);
+      if (canDownload) {
+        $('mDownload').textContent = 'Скачати';
+        $('mDownload').onclick = () => downloadFile(m.file);
+      } else {
+        $('mDownload').textContent = '🔒 Скачати';
+        $('mDownload').onclick = () => { location.href = loginUrl(); };
+        $('mLogin').href = loginUrl();
+        $('mRegister').href = loginUrl().replace('#login', '#register');
+      }
 
       const canDelete = Access.canManageMaterial(currentUser(), m, 'delete');
       $('mDelete').hidden = !canDelete;
@@ -573,11 +650,18 @@
 
   // Редагування матеріалу у вікні; надсилаємо лише змінені поля (PATCH)
   let editing = null;
+  let editNewFile = null;
   function openEdit(m) {
     editing = m;
+    editNewFile = null;
     const f = $('editForm');
     f.title.value = m.title;
     f.subject.value = m.subject;
+    f.university.value = m.university;
+    $('editFileInput').value = '';
+    $('editFileName').textContent = `📄 ${m.file.fileName}`;
+    $('editFileNote').textContent = 'Залиште як є або оберіть новий файл';
+    $('editFileNote').className = 'field-note';
     f.course.value = String(m.course);
     f.type.value = m.type;
     f.description.value = m.description || '';
@@ -589,11 +673,23 @@
     event.preventDefault();
     const f = $('editForm');
     const next = {
-      title: f.title.value.trim(), subject: f.subject.value.trim(), course: Number(f.course.value),
-      type: f.type.value, description: f.description.value.trim(),
+      title: f.title.value.trim(), subject: f.subject.value.trim(), university: f.university.value.trim(),
+      course: Number(f.course.value), type: f.type.value, description: f.description.value.trim(),
     };
     const changes = Object.fromEntries(Object.entries(next).filter(([k, v]) => v !== (editing[k] ?? '')));
-    if (!Object.keys(changes).length) { $('editDialog').close(); return; }
+    if (!Object.keys(changes).length && !editNewFile) { $('editDialog').close(); return; }
+    // Новий файл: спершу POST /files, потім його id іде в PATCH як fileId
+    if (editNewFile) {
+      try {
+        $('editResult').className = 'result ok';
+        $('editResult').textContent = 'Завантажуємо новий файл…';
+        changes.fileId = (await uploadFile(editNewFile)).id;
+      } catch (e) {
+        $('editResult').className = 'result bad';
+        $('editResult').textContent = e.details ? e.details.map((d) => d.message).join('; ') : `Файл не прийнято: ${e.message || describeError(e)}`;
+        return;
+      }
+    }
     const res = await callApi(`PATCH /materials/${editing.id}`, `${API_URL}/materials/${editing.id}`, {
       method: 'PATCH', headers: authHeaders(), body: JSON.stringify(changes),
     });
@@ -723,6 +819,15 @@
 
     $('logoutBtn2').addEventListener('click', () => $('logoutBtn').click());
     $('editForm').addEventListener('submit', saveEdit);
+    $('editFileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const problem = checkFile(file);
+      editNewFile = problem ? null : file;
+      $('editFileName').textContent = problem ? `📄 ${editing.file.fileName}` : `📄 ${file.name} (новий)`;
+      $('editFileNote').textContent = problem || `${formatSize(file.size)} · замінить поточний файл після «Зберегти»`;
+      $('editFileNote').className = problem ? 'field-note bad-note' : 'field-note';
+    });
     $('editCancel').addEventListener('click', () => $('editDialog').close());
   }
 
@@ -730,7 +835,10 @@
   $('retryNowBtn').addEventListener('click', () => degraded.retryNow());
   renderSession();
 
-  if (page === 'material') loadMaterialPage(); // гостя перекине на вхід одразу, без очікування /health
+  if (page === 'material') {
+    loadMaterialPage();
+    $('previewClose').addEventListener('click', closePreview);
+  }
   if (page === 'profile') loadProfilePage();
   checkHealth().then((ok) => { if (ok && page === 'home') loadMaterials(); });
 }());

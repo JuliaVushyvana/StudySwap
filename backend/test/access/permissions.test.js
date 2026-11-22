@@ -23,15 +23,20 @@ test('roleOf: немає користувача або заблокований 
   assert.equal(roleOf(admin), Role.ADMIN);
 });
 
-test('гість: лише каталог', () => {
+test('гість: каталог, сторінка матеріалу й перегляд документа, але не скачування і не коментарі', () => {
   assert.equal(can(null, P.MATERIAL_LIST), true);
-  assert.equal(can(null, P.MATERIAL_READ), false);
+  assert.equal(can(null, P.MATERIAL_READ), true);
+  assert.equal(can(null, P.FILE_PREVIEW), true);
+  assert.equal(can(null, P.FILE_READ), false);
+  assert.equal(can(null, P.COMMENT_CREATE), false);
   assert.equal(can(null, P.MATERIAL_CREATE), false);
   assert.equal(canManageMaterial(null, annasMaterial, 'delete'), false);
 });
 
 test('користувач: відкриває й додає, змінює/видаляє лише своє', () => {
   assert.equal(can(julia, P.MATERIAL_READ), true);
+  assert.equal(can(julia, P.FILE_READ), true);
+  assert.equal(can(julia, P.COMMENT_CREATE), true);
   assert.equal(can(julia, P.MATERIAL_CREATE), true);
   assert.equal(canManageMaterial(anna, annasMaterial, 'update'), true);
   assert.equal(canManageMaterial(anna, annasMaterial, 'delete'), true);
