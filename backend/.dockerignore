@@ -1,0 +1,26 @@
+# Що НЕ потрапляє в образ при docker build ./backend
+
+# Залежності ставляться всередині образу через npm ci
+node_modules
+npm-debug.log*
+
+# Локальна база SQLite: у контейнері створюється своя
+*.db
+*.db-journal
+
+# Тести й службові файли не потрібні для запуску
+test
+coverage
+.gitkeep
+
+# Секрети й налаштування редакторів
+.env
+.env.*
+.git
+.vscode
+.idea
+.DS_Store
+
+# Самі файли Docker
+Dockerfile
+.dockerignore
