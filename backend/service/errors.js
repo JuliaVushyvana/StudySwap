@@ -18,8 +18,8 @@ class ValidationError extends AppError {
 }
 
 class UnauthorizedError extends AppError {
-  constructor() {
-    super('Unauthorized', 'UNAUTHORIZED', 'Потрібен вхід');
+  constructor(code = 'UNAUTHORIZED', message = 'Потрібен вхід') {
+    super('Unauthorized', code, message);
   }
 }
 

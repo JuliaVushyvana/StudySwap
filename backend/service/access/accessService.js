@@ -1,23 +1,15 @@
-// Публічний інтерфейс модуля access для інших модулів і api/.
+// Публічний інтерфейс модуля access для інших модулів і api/: хто робить запит.
 
-// Тимчасові токени для розробки: справжній вхід (POST /auth/login, JWT) з'явиться окремою задачею.
-// Ключ — токен із заголовка Authorization: Bearer <токен>, значення — User.id.
-const DEV_TOKENS = Object.freeze({
-  'dev-token-anna': 1,
-  'dev-token-ivan': 2,
-  'dev-token-admin': 3,
-});
-
-function createAccessService({ userRepository, tokens = DEV_TOKENS }) {
+function createAccessService({ userRepository, tokenService }) {
   return {
-    // Повертає User за токеном або null, якщо токен невідомий чи користувача заблоковано
+    // Повертає User за JWT або null, якщо токен недійсний, відкликаний чи користувача заблоковано
     authenticate(token) {
-      const userId = token && tokens[token];
-      if (!userId) return null;
-      const user = userRepository.findById(userId);
+      const payload = tokenService.verify(token);
+      if (!payload) return null;
+      const user = userRepository.findById(payload.userId);
       return user && !user.isBlocked ? user : null;
     },
   };
 }
 
-module.exports = { createAccessService, DEV_TOKENS };
+module.exports = { createAccessService };

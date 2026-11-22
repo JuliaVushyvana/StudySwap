@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Вхід · StudySwap</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="logo" href="index.html">StudySwap</a>
+    <div class="topbar-actions">
+      <a href="index.html" class="btn btn-outline">← На головну</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card card-narrow" id="auth">
+      <!-- Вкладки — посилання: auth.html#login і auth.html#register можна відкрити напряму -->
+      <div class="tabs" role="tablist">
+        <a href="#login" class="tab active" role="tab" data-tab="login" aria-selected="true">Вхід</a>
+        <a href="#register" class="tab" role="tab" data-tab="register" aria-selected="false">Реєстрація</a>
+      </div>
+
+      <form id="loginForm" class="auth-form">
+        <label class="field">Логін або пошта
+          <input name="login" autocomplete="username" required>
+        </label>
+        <label class="field">Пароль
+          <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <button type="submit" class="btn btn-primary btn-block">Увійти</button>
+        <p class="hint">Тестові акаунти: <b>anna_k</b>, <b>julia_v</b>, <b>admin1</b> — пароль <b>studyswap123</b>.</p>
+      </form>
+
+      <form id="registerForm" class="auth-form" hidden>
+        <label class="field">Нікнейм
+          <input name="nickname" minlength="3" maxlength="30" autocomplete="nickname" required>
+        </label>
+        <div class="two">
+          <label class="field">Логін
+            <input name="login" minlength="5" maxlength="32" pattern="[A-Za-z0-9_.\-]+" autocomplete="username"
+              title="Латинські літери, цифри та символи _ . -" required>
+          </label>
+          <label class="field">Дата народження
+            <input name="birthDate" type="date" required>
+          </label>
+        </div>
+        <label class="field">Пошта
+          <input name="email" type="email" maxlength="254" autocomplete="email" required>
+        </label>
+        <label class="field">Пароль
+          <input name="password" type="password" minlength="8" autocomplete="new-password" required>
+        </label>
+        <button type="submit" class="btn btn-primary btn-block">Зареєструватися</button>
+      </form>
+      <p id="authResult" class="result"></p>
+    </section>
+  </main>
+
+  <script src="lib/http.js"></script>
+  <script src="lib/session.js"></script>
+  <script src="auth.js"></script>
+</body>
+</html>
