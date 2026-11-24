@@ -1,0 +1,12 @@
+# Постійний том для файлу SQLite і завантажених файлів: дані переживають перезапуск Pod-а.
+# ReadWriteOnce — том монтується в один вузол; разом із SQLite це причина однієї репліки.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: studyswap-data
+  namespace: studyswap
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi

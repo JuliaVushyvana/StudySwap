@@ -1,0 +1,5 @@
+# Окремий простір імен для StudySwap: усі ресурси проєкту ізольовані від інших у кластері
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: studyswap

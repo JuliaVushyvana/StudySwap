@@ -1,0 +1,13 @@
+# Налаштування бекенду StudySwap (не секретні). Під'єднуються в Pod як env через envFrom.
+# Env читаються лише під час старту контейнера: після зміни потрібен kubectl rollout restart.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: studyswap-config
+  namespace: studyswap
+data:
+  PORT: "3000"
+  DB_FILE: /app/data/studyswap.db     # база SQLite на постійному томі
+  FILES_DIR: /app/data/files          # завантажені файли матеріалів — там само
+  RATE_LIMIT_MAX: "50"                # запитів з одного IP за вікно 10 с
+  REQUEST_TIMEOUT_MS: "5000"
