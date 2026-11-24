@@ -14,7 +14,7 @@
 | Розробник 1 | локальний запуск і 6 ендпоінтів, Docker-образ, Minikube, Namespace / ConfigMap / Secret / Deployment / Service, доступ через `kubectl port-forward` |
 | Розробник 1 | `APP_MODE` dev → prod: після `kubectl apply` Pod досі бачить `dev`, після `kubectl rollout restart` — `prod`; liveness `/healthz` і readiness `/ready` через `kubectl describe pod` |
 | Розробник 1 | Ingress на `k8s-demo.local` через `minikube tunnel`, debug-команди для Pod / Service / Ingress, самовідновлення Pod-а після `kubectl delete pod` |
-| Розробник 2 | бекенд StudySwap у Kubernetes (Deployment + Service, ConfigMap) — окремий розділ у `REPORT.md` |
+| Розробник 2 | бекенд StudySwap у Kubernetes: Deployment (1 репліка, `Recreate`), Service ClusterIP `80 → 3000`, ConfigMap, PVC для SQLite і файлів, Secret для `JWT_SECRET`; перевірка через `kubectl port-forward` і `rollout restart` після зміни ConfigMap — окремий розділ у `REPORT.md` |
 
 ## Шлях запиту
 
