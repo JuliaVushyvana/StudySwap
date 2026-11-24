@@ -68,9 +68,9 @@ class User {
   // Призначити роль (user / admin) може лише суперадмін. Інваріанти:
   // не можна змінити власну роль, роль іншого суперадміна чи призначити суперадміна.
   assignRole(actor, role) {
-    if (!actor || !actor.isSuperAdmin()) throw new Error('Призначати ролі може лише суперадмін'); // 403
+    if (!actor || !actor.isSuperAdmin()) throw new Error('Призначати ролі може лише головний адміністратор'); // 403
     if (actor.id === this.id) throw new Error('Не можна змінити власну роль');
-    if (this.isSuperAdmin()) throw new Error('Роль суперадміна змінити не можна');
+    if (this.isSuperAdmin()) throw new Error('Роль головного адміністратора змінити не можна');
     if (!ASSIGNABLE_ROLES.includes(role)) throw new Error('Можна призначити лише user або admin');
     this.role = role;
   }

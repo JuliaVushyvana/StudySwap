@@ -388,7 +388,7 @@ select {
   background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5l5-5' fill='none' stroke='%235b6078' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 18px center / 12px 8px;
 }
 
-/* ---------- Суперадмін: керування ролями ---------- */
+/* ---------- Головний адміністратор: керування ролями ---------- */
 .profile-role.role-superadmin { background: linear-gradient(90deg, #3b4bdb, #7a2ec9); color: #fff; }
 .roles-search { max-width: 420px; margin-bottom: 20px; }
 .role-chip { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; }

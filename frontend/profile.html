@@ -123,10 +123,10 @@
       </section>
     </div>
 
-    <!-- Лише для суперадміна: призначення й зняття адмінів -->
+    <!-- Лише для головного адміністратора: призначення й зняття адмінів -->
     <section class="card roles-card" id="rolesCard" hidden>
       <h2>Керування ролями</h2>
-      <p class="hint">Призначайте адмінів і знімайте їх. Суперадміна призначити не можна, свою роль змінити теж.</p>
+      <p class="hint">Призначайте адмінів і знімайте їх. Головного адміністратора призначити не можна, свою роль змінити теж.</p>
       <input id="rolesSearch" class="roles-search" placeholder="Пошук за нікнеймом, логіном або поштою" autocomplete="off">
       <div class="table-wrap">
         <table class="table">
@@ -137,7 +137,7 @@
       <p id="rolesResult" class="result"></p>
     </section>
 
-    <!-- Лише для адміна й суперадміна: скарги на матеріали (GET /reports, POST /reports/{id}/decision) -->
+    <!-- Лише для адміна й головного адміністратора: скарги на матеріали (GET /reports, POST /reports/{id}/decision) -->
     <section class="card reports-card" id="reportsCard" hidden>
       <div class="card-title-row">
         <h2>Скарги</h2>

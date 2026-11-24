@@ -33,14 +33,14 @@ test('користувач: скачує й додає, змінює лише с
   assert.equal(can(julia, P.COMMENT_DELETE_ANY), false);
 });
 
-test('адмін керує всіма матеріалами; ролі призначає лише суперадмін', () => {
+test('адмін керує всіма матеріалами; ролі призначає лише головний адміністратор', () => {
   assert.equal(canManageMaterial(admin, annasMaterial, 'update'), true);
   assert.equal(can(admin, P.USER_ROLE_MANAGE), false);
   assert.equal(can(superadmin, P.USER_ROLE_MANAGE), true);
   assert.equal(can(admin, P.COMMENT_DELETE_ANY), true);
   assert.equal(can(admin, P.REPORT_REVIEW), true);
   assert.equal(can(superadmin, P.COMMENT_DELETE_ANY), true);
-  assert.equal(label(superadmin), 'Суперадмін');
+  assert.equal(label(superadmin), 'Головний адміністратор');
 });
 
 test('невідома роль вважається гостем', () => {
