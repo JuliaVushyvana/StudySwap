@@ -53,3 +53,8 @@ Thumbs.db
 
 # Claude Code
 CLAUDE.md
+
+# Курсові, звіти й тимчасові файли Word у корені — не для репозиторію
+/*.docx
+/*.pdf
+~$*
