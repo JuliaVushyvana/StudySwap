@@ -1,0 +1,191 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1215" viewBox="0 0 1600 1215" font-family="DejaVu Sans, Arial, sans-serif" xmlns:c2pa="http://c2pa.org/manifest">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/>
+    </marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#15803d"/>
+    </marker>
+    <marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c2410c"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="1215" fill="#ffffff"/>
+
+  <!-- Заголовок -->
+  <text x="40" y="44" font-size="26" font-weight="bold" fill="#0f172a">StudySwap у Kubernetes: всередині кластера + git → CI/CD → registry</text>
+  <text x="40" y="70" font-size="15" fill="#475569">Практична 9 · завдання 3 і 4 (Розробник 2) · сервіс studyswap-api — бекенд StudySwap (Express 5 + SQLite)</text>
+
+  <!-- ===================== Завдання 4: git → CI/CD → registry ===================== -->
+  <g>
+    <rect x="40" y="95" width="380" height="135" rx="12" fill="#f8fafc" stroke="#334155" stroke-width="2"/>
+    <text x="60" y="125" font-size="18" font-weight="bold" fill="#0f172a">Git-репозиторій</text>
+    <text x="60" y="152" font-size="15" fill="#0f172a">github.com/studyswap/studyswap</text>
+    <text x="60" y="176" font-size="13" fill="#475569">backend/ (код API) · backend/Dockerfile</text>
+    <text x="60" y="197" font-size="13" fill="#475569">.github/workflows/ (ci.yml, cd.yml)</text>
+    <text x="60" y="218" font-size="13" fill="#475569">розробник робить git push / pull request</text>
+
+    <rect x="560" y="95" width="500" height="135" rx="12" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+    <text x="580" y="125" font-size="18" font-weight="bold" fill="#1e3a8a">CI/CD pipeline · GitHub Actions</text>
+    <text x="580" y="152" font-size="13" fill="#1e293b">1) отримує код після git push (подія push / pull_request)</text>
+    <text x="580" y="174" font-size="13" fill="#1e293b">2) CI: npm ci → lint → тести (зламаний код далі не йде)</text>
+    <text x="580" y="196" font-size="13" fill="#1e293b">3) CD: docker build ./backend → Docker image</text>
+    <text x="580" y="218" font-size="13" fill="#1e293b">4) docker push образу в container registry</text>
+
+    <rect x="1180" y="95" width="380" height="135" rx="12" fill="#fff7ed" stroke="#c2410c" stroke-width="2"/>
+    <text x="1200" y="125" font-size="18" font-weight="bold" fill="#7c2d12">Container registry · GHCR</text>
+    <text x="1200" y="152" font-size="14" fill="#0f172a">ghcr.io/studyswap/studyswap-api:1.0.0</text>
+    <text x="1200" y="176" font-size="13" fill="#475569">та сама збірка також має тег sha-&lt;коміт&gt;</text>
+    <text x="1200" y="197" font-size="13" fill="#475569">і незмінний digest sha256:…</text>
+    <text x="1200" y="218" font-size="13" fill="#475569">зберігає готові Docker-образи</text>
+
+    <line x1="420" y1="162" x2="556" y2="162" stroke="#334155" stroke-width="2.5" marker-end="url(#a)"/>
+    <text x="440" y="152" font-size="13" font-weight="bold" fill="#334155">git push</text>
+    <line x1="1060" y1="162" x2="1176" y2="162" stroke="#2563eb" stroke-width="2.5" marker-end="url(#ab)"/>
+    <text x="1068" y="152" font-size="13" font-weight="bold" fill="#2563eb">docker push</text>
+  </g>
+
+  <!-- ===================== Зовнішній ланцюжок (завдання 2, Розробник 1) ===================== -->
+  <g>
+    <rect x="30" y="280" width="225" height="420" rx="12" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6 5"/>
+    <text x="45" y="304" font-size="12" fill="#64748b">ззовні (завдання 2,</text>
+    <text x="45" y="320" font-size="12" fill="#64748b">Розробник 1)</text>
+
+    <rect x="50" y="335" width="185" height="60" rx="10" fill="#ffffff" stroke="#64748b"/>
+    <text x="66" y="360" font-size="15" font-weight="bold" fill="#0f172a">User / Client</text>
+    <text x="66" y="381" font-size="12" fill="#475569">браузер, frontend</text>
+
+    <rect x="50" y="440" width="185" height="60" rx="10" fill="#ffffff" stroke="#64748b"/>
+    <text x="66" y="465" font-size="15" font-weight="bold" fill="#0f172a">DNS</text>
+    <text x="66" y="486" font-size="12" fill="#475569">studyswap.com → IP</text>
+
+    <rect x="50" y="545" width="185" height="60" rx="10" fill="#ffffff" stroke="#64748b"/>
+    <text x="66" y="570" font-size="15" font-weight="bold" fill="#0f172a">Load Balancer</text>
+    <text x="66" y="591" font-size="12" fill="#475569">вхід у кластер</text>
+
+    <line x1="142" y1="395" x2="142" y2="436" stroke="#334155" stroke-width="2" marker-end="url(#a)"/>
+    <line x1="142" y1="500" x2="142" y2="541" stroke="#334155" stroke-width="2" marker-end="url(#a)"/>
+    <text x="50" y="640" font-size="12" fill="#475569">https://studyswap.com/api/…</text>
+  </g>
+
+  <!-- ===================== Кластер ===================== -->
+  <rect x="280" y="265" width="1290" height="885" rx="16" fill="#fafafa" stroke="#0f172a" stroke-width="2.5"/>
+  <text x="300" y="293" font-size="18" font-weight="bold" fill="#0f172a">Kubernetes cluster</text>
+  <text x="510" y="293" font-size="13" fill="#475569">Node-и (сервери кластера): node-1, node-2, node-3 — на них планувальник розміщує Pod-и</text>
+
+  <!-- Namespace -->
+  <rect x="300" y="310" width="1250" height="825" rx="14" fill="#f0fdf4" stroke="#15803d" stroke-width="2" stroke-dasharray="10 6"/>
+  <text x="320" y="337" font-size="17" font-weight="bold" fill="#14532d">Namespace: studyswap-prod</text>
+
+  <!-- Ingress -->
+  <rect x="325" y="355" width="330" height="170" rx="12" fill="#ffffff" stroke="#7c3aed" stroke-width="2"/>
+  <text x="345" y="383" font-size="17" font-weight="bold" fill="#4c1d95">Ingress</text>
+  <text x="345" y="406" font-size="13" fill="#0f172a">studyswap-api-ingress</text>
+  <text x="345" y="430" font-size="13" fill="#0f172a">host: studyswap.com</text>
+  <text x="345" y="452" font-size="13" fill="#0f172a">path: /api → studyswap-api-svc:80</text>
+  <text x="345" y="476" font-size="12" fill="#475569">маршрутизує запит за Host і Path</text>
+  <text x="345" y="496" font-size="12" fill="#475569">до внутрішнього Service</text>
+
+  <!-- LB → Ingress -->
+  <path d="M235,575 H275 V440 H321" fill="none" stroke="#334155" stroke-width="2.5" marker-end="url(#a)"/>
+
+  <!-- Service -->
+  <rect x="745" y="355" width="380" height="170" rx="12" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+  <text x="765" y="383" font-size="17" font-weight="bold" fill="#1e3a8a">Service: studyswap-api-svc</text>
+  <text x="765" y="408" font-size="13" fill="#0f172a">type: ClusterIP (лише всередині кластера)</text>
+  <text x="765" y="430" font-size="13" fill="#0f172a">port 80 → targetPort 3000</text>
+  <text x="765" y="452" font-size="13" fill="#0f172a">selector: app=studyswap-api</text>
+  <text x="765" y="476" font-size="12" fill="#475569">DNS у кластері:</text>
+  <text x="765" y="496" font-size="12" fill="#475569">http://studyswap-api-svc.studyswap-prod</text>
+  <text x="765" y="514" font-size="12" fill="#475569">розподіляє трафік на всі Pod-и з цим label</text>
+
+  <!-- Ingress → Service -->
+  <line x1="655" y1="440" x2="741" y2="440" stroke="#7c3aed" stroke-width="2.5" marker-end="url(#a)"/>
+  <text x="676" y="430" font-size="13" font-weight="bold" fill="#7c3aed">/api</text>
+
+  <!-- Примітка про інші сервіси -->
+  <rect x="1180" y="355" width="350" height="110" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-dasharray="5 4"/>
+  <text x="1196" y="380" font-size="13" font-weight="bold" fill="#334155">Інші сервіси кластера</text>
+  <text x="1196" y="402" font-size="12" fill="#475569">(напр. studyswap-web) звертаються</text>
+  <text x="1196" y="422" font-size="12" fill="#475569">до API по DNS-імені Service:</text>
+  <text x="1196" y="442" font-size="12" fill="#334155">http://studyswap-api-svc</text>
+  <line x1="1180" y1="430" x2="1129" y2="430" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
+
+  <!-- Deployment -->
+  <rect x="325" y="580" width="800" height="430" rx="14" fill="#ffffff" stroke="#0f172a" stroke-width="2"/>
+  <text x="345" y="608" font-size="17" font-weight="bold" fill="#0f172a">Deployment: studyswap-api</text>
+  <text x="345" y="632" font-size="13" fill="#0f172a">replicas: 1 · strategy: Recreate</text>
+  <text x="345" y="653" font-size="12" fill="#475569">шаблон Pod-а: образ 1.0.0, label app=studyswap-api</text>
+  <text x="560" y="998" font-size="12" fill="#475569">Deployment стежить, щоб працювала задана кількість Pod-ів: впав Pod — створює новий</text>
+
+  <!-- Pod 1 -->
+  <rect x="350" y="675" width="360" height="300" rx="12" fill="#ecfdf5" stroke="#15803d" stroke-width="2.5"/>
+  <text x="368" y="702" font-size="15" font-weight="bold" fill="#14532d">Pod studyswap-api-…-x7k2p</text>
+  <text x="368" y="722" font-size="12" fill="#166534">працює зараз · node-1</text>
+  <rect x="368" y="735" width="324" height="190" rx="8" fill="#ffffff" stroke="#15803d"/>
+  <text x="382" y="760" font-size="13" font-weight="bold" fill="#0f172a">container: studyswap-api</text>
+  <text x="382" y="783" font-size="12" fill="#0f172a">image: ghcr.io/studyswap/</text>
+  <text x="382" y="801" font-size="12" fill="#0f172a">          studyswap-api:1.0.0</text>
+  <text x="382" y="824" font-size="12" fill="#0f172a">Node.js 22 · Express 5 · port 3000</text>
+  <text x="382" y="847" font-size="12" fill="#0f172a">probes: GET /health</text>
+  <text x="382" y="870" font-size="12" fill="#0f172a">env: DB_FILE=/data/studyswap.db</text>
+  <text x="382" y="893" font-size="12" fill="#0f172a">volumeMount: /data ← PVC</text>
+  <text x="382" y="914" font-size="12" fill="#475569">секрет JWT_SECRET — з Secret</text>
+  <text x="368" y="955" font-size="12" fill="#166534">label: app=studyswap-api</text>
+
+  <!-- Pod 2 (план) -->
+  <rect x="745" y="675" width="355" height="300" rx="12" fill="#f8fafc" stroke="#64748b" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="763" y="702" font-size="15" font-weight="bold" fill="#334155">Pod-репліки 2, 3 (план)</text>
+  <text x="763" y="722" font-size="12" fill="#475569">node-2, node-3 · той самий образ 1.0.0</text>
+  <rect x="763" y="735" width="319" height="190" rx="8" fill="#ffffff" stroke="#94a3b8" stroke-dasharray="6 5"/>
+  <text x="777" y="760" font-size="13" font-weight="bold" fill="#334155">container: studyswap-api</text>
+  <text x="777" y="783" font-size="12" fill="#475569">replicas: 1 → 3 одним рядком</text>
+  <text x="777" y="801" font-size="12" fill="#475569">у Deployment, коли база стане</text>
+  <text x="777" y="819" font-size="12" fill="#475569">окремим сервером (PostgreSQL).</text>
+  <text x="777" y="847" font-size="12" fill="#475569">Зараз SQLite — це один файл</text>
+  <text x="777" y="865" font-size="12" fill="#475569">на томі ReadWriteOnce: писати</text>
+  <text x="777" y="883" font-size="12" fill="#475569">в нього може лише один Pod.</text>
+  <text x="763" y="955" font-size="12" fill="#475569">label: app=studyswap-api</text>
+
+  <!-- Service → Pods -->
+  <path d="M880,525 V562 H690 V671" fill="none" stroke="#2563eb" stroke-width="2.5" marker-end="url(#ab)"/>
+  <path d="M1000,525 V671" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-dasharray="8 6" marker-end="url(#ab)"/>
+  <text x="345" y="556" font-size="13" font-weight="bold" fill="#2563eb">трафік → Pod-и з label app=studyswap-api</text>
+
+  <!-- PVC -->
+  <rect x="1180" y="790" width="350" height="150" rx="12" fill="#ffffff" stroke="#15803d" stroke-width="2"/>
+  <text x="1200" y="818" font-size="17" font-weight="bold" fill="#14532d">PVC: studyswap-data</text>
+  <text x="1200" y="842" font-size="13" fill="#0f172a">файл бази /data/studyswap.db</text>
+  <text x="1200" y="864" font-size="13" fill="#0f172a">+ завантажені файли матеріалів</text>
+  <text x="1200" y="886" font-size="13" fill="#0f172a">accessMode: ReadWriteOnce</text>
+  <text x="1200" y="910" font-size="12" fill="#475569">дані переживають перезапуск Pod-а</text>
+
+  <!-- Pod1 → PVC -->
+  <path d="M530,975 V1050 H1355 V944" fill="none" stroke="#15803d" stroke-width="2.5" marker-end="url(#ag)"/>
+  <text x="560" y="1043" font-size="13" font-weight="bold" fill="#15803d">volumeMount /data (читання й запис SQLite)</text>
+
+  <!-- Registry → Pod (image pull) -->
+  <path d="M1460,230 V250 H1560 V700 H1104" fill="none" stroke="#c2410c" stroke-width="2.5" marker-end="url(#ao)"/>
+  <path d="M1560,700 V1085 H440 V979" fill="none" stroke="#c2410c" stroke-width="2.5" marker-end="url(#ao)"/>
+  <text x="1300" y="560" font-size="13" font-weight="bold" fill="#c2410c">image pull</text>
+  <text x="1300" y="578" font-size="12" fill="#c2410c">Pod-и скачують образ</text>
+  <text x="1300" y="595" font-size="12" fill="#c2410c">з registry під час старту</text>
+  <text x="790" y="1102" font-size="12" fill="#c2410c">kubelet на node-1 тягне ghcr.io/studyswap/studyswap-api:1.0.0</text>
+
+  <!-- Легенда -->
+  <g font-size="13" fill="#334155" transform="translate(0,55)">
+    <line x1="300" y1="1132" x2="340" y2="1132" stroke="#334155" stroke-width="2.5"/>
+    <text x="348" y="1137">працює зараз</text>
+    <line x1="470" y1="1132" x2="510" y2="1132" stroke="#334155" stroke-width="2.5" stroke-dasharray="8 6"/>
+    <text x="518" y="1137">план / пояснення</text>
+    <rect x="680" y="1123" width="18" height="18" fill="#f0fdf4" stroke="#15803d" stroke-dasharray="4 3"/>
+    <text x="706" y="1137">namespace</text>
+    <text x="820" y="1137" fill="#c2410c">помаранчеві стрілки — образ із registry</text>
+    <text x="1150" y="1137" fill="#2563eb">сині — HTTP-трафік</text>
+    <text x="1330" y="1137" fill="#15803d">зелена — диск (PVC)</text>
+  </g>
+<metadata><c2pa:manifest>AAAWgmp1bWIAAAAeanVtZGMycGEAEQAQgAAAqgA4m3EDYzJwYQAAABZcanVtYgAAAEdqdW1kYzJtYQARABCAAACqADibcQN1cm46YzJwYTo5Zjc2YjEwMS04NTY0LTRhYTctODc2NS04MDQxZDFlYTY4ZjgAAAADl2p1bWIAAAApanVtZGMyYXMAEQAQgAAAqgA4m3EDYzJwYS5hc3NlcnRpb25zAAAAALxqdW1iAAAARGp1bWRjYm9yABEAEIAAAKoAOJtxE2MycGEuaW5ncmVkaWVudC52MwAAAAAYYzJzaMmwwMePh05mzrM5dou9CnEAAABwY2JvcqNpZGM6Zm9ybWF0bWltYWdlL3N2Zyt4bWxqaW5zdGFuY2VJRHgseG1wOmlpZDo5NWNjYzkzNy00ZTc4LTRkM2UtOTBlZC02Y2RmZTI0NTk1NTBscmVsYXRpb25zaGlwaHBhcmVudE9mAAAB4mp1bWIAAABBanVtZGNib3IAEQAQgAAAqgA4m3ETYzJwYS5hY3Rpb25zLnYyAAAAABhjMnNo9Q0cWPs1XbEgVD73hBh1jgAAAZljYm9yomdhY3Rpb25zgqJmYWN0aW9ua2MycGEub3BlbmVkanBhcmFtZXRlcnOha2luZ3JlZGllbnRzgaJjdXJseC1zZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmluZ3JlZGllbnQudjNkaGFzaFggvwMqzGDfkF0OhkLRQVhnRHk5n9ksgbWSIPaPU0HrgwOkZmFjdGlvbngdY29tLmFudGhyb3BpYy5jbGF1ZGUucHJvdmlkZWRqcGFyYW1ldGVyc6F4H2NvbS5hbnRocm9waWMub3JpZ2luLWNvbmZpZGVuY2VndW5rbm93bmtkZXNjcmlwdGlvbnhmQ2xhdWRlIHByb3ZpZGVkIHRoaXMgZmlsZSBhdCB0aGUgcmVxdWVzdCBvZiBhIHVzZXIgYW5kIG1heSBoYXZlIGNyZWF0ZWQgb3IgbW9kaWZpZWQgdGhlIGZpbGUgY29udGVudHMubXNvZnR3YXJlQWdlbnShZG5hbWVmQ2xhdWRlcmFsbEFjdGlvbnNJbmNsdWRlZPUAAADIanVtYgAAAEBqdW1kY2JvcgARABCAAACqADibcRNjMnBhLmhhc2guZGF0YQAAAAAYYzJzaMvqGwe3kUHqSl2PY6y6yLcAAACAY2JvcqVjYWxnZnNoYTI1NmNwYWRMAAAAAAAAAAAAAAAAZGhhc2hYIGymf2EWycml+KzKi15lWXUc8bO+x1x2SqiB8aGtURkdZG5hbWVuanVtYmYgbWFuaWZlc3RqZXhjbHVzaW9uc4GiZXN0YXJ0GTqLZmxlbmd0aBkeBAAAAj5qdW1iAAAAJ2p1bWRjMmNsABEAEIAAAKoAOJtxA2MycGEuY2xhaW0udjIAAAACD2Nib3KlY2FsZ2ZzaGEyNTZpc2lnbmF0dXJleE1zZWxmI2p1bWJmPS9jMnBhL3VybjpjMnBhOjlmNzZiMTAxLTg1NjQtNGFhNy04NzY1LTgwNDFkMWVhNjhmOC9jMnBhLnNpZ25hdHVyZWppbnN0YW5jZUlEeCx4bXA6aWlkOmM4YWY1MGI2LTM1MTMtNGE5MS04NDU0LTgyZmQ4NGRkYTAwZHJjcmVhdGVkX2Fzc2VydGlvbnODomN1cmx4LXNlbGYjanVtYmY9YzJwYS5hc3NlcnRpb25zL2MycGEuaW5ncmVkaWVudC52M2RoYXNoWCC/AyrMYN+QXQ6GQtFBWGdEeTmf2SyBtZIg9o9TQeuDA6JjdXJseCpzZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmFjdGlvbnMudjJkaGFzaFggTmxjBEgGmcWyRJqv6/vJW20UmZ2z5XxD3DvwSyK5M2OiY3VybHgpc2VsZiNqdW1iZj1jMnBhLmFzc2VydGlvbnMvYzJwYS5oYXNoLmRhdGFkaGFzaFggAzhgs3Mp+xz9FDc9Oalsf8U/MW0mIXTWmsGcP6Q1s1x0Y2xhaW1fZ2VuZXJhdG9yX2luZm+jZG5hbWVvQW50aHJvcGljIEZpbGVzZ3ZlcnNpb25lMS4wLjBrc3BlY1ZlcnNpb25lMi40LjAAABA4anVtYgAAAChqdW1kYzJjcwARABCAAACqADibcQNjMnBhLnNpZ25hdHVyZQAAABAIY2JvctKEWQISogEmGCFZAgowggIGMIIBjaADAgECAhRA5aAK7sI50L64g/oGQgU9Z1UTADAKBggqhkjOPQQDAzBJMRcwFQYDVQQKEw5BbnRocm9waWMsIFBCQzEuMCwGA1UEAxMlQW50aHJvcGljIENvbnRlbnQgQ3JlZGVudGlhbHMgUm9vdCBDQTAeFw0yNjA4MDcxODQzNTZaFw0yODA4MDYxOTQzNTZaMEQxFzAVBgNVBAoTDkFudGhyb3BpYywgUEJDMSkwJwYDVQQDEyBBbnRocm9waWMgQ2xhdWRlIENvbnRlbnQgU2lnbmluZzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABJh6CmvLUBgFFNU0vUKlOVtE6djd17L5SuwX0LemFisBM3dkd/3cyjxFA3Qo5S46fX0/ihY0VZ7mfb9KF703t5OjWDBWMA4GA1UdDwEB/wQEAwIHgDAVBgNVHSUEDjAMBgorBgEEAYPoXgIBMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUzlHiBIFOZFsj+OPEz5o+nMHXXMIwCgYIKoZIzj0EAwMDZwAwZAIwMXMdFJ4BetLLVY7ORuE9noqbbAZOZn/aArXyTwFAZfKrPzxF2vPoJNf1+UCdg1XGAjBwX1zd9WGqYkqmL5SFqw1QySjr1zJfpJM9+1rdDwSPLMOPOjKuiXjoU/pUUeG9RwmhY3BhZFkNngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPZYQO4lgHW36nA/xvwIT5jp8MtmsJVuUZ7c/7Dr/tjRdP5N6izwfyG+Aa8/apOc2tN718wjb8F8+jVOhnOJJKV+bJ0=</c2pa:manifest></metadata></svg>
