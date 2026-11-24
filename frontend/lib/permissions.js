@@ -1,4 +1,4 @@
-// Рівні доступу на фронтенді (гість / користувач / адмін / суперадмін) — дзеркало backend/domain/access/permissions.js.
+// Рівні доступу на фронтенді (гість / користувач / адмін / головний адміністратор) — дзеркало backend/domain/access/permissions.js.
 // Лише для зручності: ховає кнопки, яких немає права натискати, і веде гостя на вхід.
 // Справжній захист — на сервері (401 / 403), тож зміна цього файлу нічого не відкриє.
 
@@ -30,7 +30,7 @@
   const SUPERADMIN = [...ADMIN, P.USER_ROLE_MANAGE];
   const ROLES = { guest: GUEST, user: USER, admin: ADMIN, superadmin: SUPERADMIN };
 
-  const LABELS = { guest: 'Гість', user: 'Користувач', admin: 'Адмін', superadmin: 'Суперадмін' };
+  const LABELS = { guest: 'Гість', user: 'Користувач', admin: 'Адмін', superadmin: 'Головний адміністратор' };
 
   // user — з відповіді POST /auth/login ({ id, nickname, role }) або null для гостя
   const roleOf = (user) => (user && ROLES[user.role] ? user.role : 'guest');
@@ -43,7 +43,7 @@
     return can(user, own) && user.id === material.authorId;
   }
 
-  // Адмін-можливості (усі матеріали, модерація) мають і адмін, і суперадмін
+  // Адмін-можливості (усі матеріали, модерація) мають і адмін, і головний адміністратор
   const isAdmin = (user) => can(user, P.MATERIAL_DELETE_ANY);
 
   global.StudyAccess = {
