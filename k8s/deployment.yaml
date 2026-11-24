@@ -1,0 +1,62 @@
+# Бекенд StudySwap (Express 5 + SQLite) у Kubernetes.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: studyswap-api
+  namespace: studyswap
+  labels:
+    app: studyswap-api
+spec:
+  # Одна репліка: у файл SQLite одночасно може писати лише один процес
+  replicas: 1
+  # Recreate: старий Pod зупиняється до старту нового, тож два процеси не пишуть в одну базу
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: studyswap-api
+  template:
+    metadata:
+      labels:
+        app: studyswap-api
+    spec:
+      # server.js не обробляє SIGTERM; без цього kubelet чекав би 30 с перед SIGKILL
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: studyswap-api
+          image: studyswap-api:1.0.0      # локальний образ, завантажений у Minikube (minikube image load)
+          imagePullPolicy: IfNotPresent   # не тягнути з Docker Hub — такого образу там нема
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: studyswap-config
+            - secretRef:
+                name: studyswap-secret    # JWT_SECRET; створюється командою, у git не комітиться
+          # Readiness: GET /health перевіряє і сервер, і базу; поки 503 — Pod не отримує трафік
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          # Liveness: лише чи процес слухає порт. Не /health, щоб збій бази не спричиняв нескінченних рестартів
+          livenessProbe:
+            tcpSocket:
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: studyswap-data

@@ -1,0 +1,19 @@
+# Зовнішній вхід за доменом studyswap.local через ingress-nginx (minikube addons enable ingress)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: studyswap-ingress
+  namespace: studyswap
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: studyswap.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: studyswap-api
+                port:
+                  number: 80
