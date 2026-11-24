@@ -3,18 +3,18 @@
 Робота виконується у fork-у навчального репозиторію [vivalafit/k8s-demo](https://github.com/vivalafit/k8s-demo), як вимагає умова:
 
 - **Fork:** https://github.com/JuliaVushyvana/k8s-demo
-- **Звіт:** [REPORT.md](https://github.com/JuliaVushyvana/k8s-demo/blob/main/REPORT.md) — кроки за рівнями, виводи команд, відповіді на контрольні запитання.
+- **Звіт:** [REPORT.md](https://github.com/JuliaVushyvana/k8s-demo/blob/main/REPORT.md) — кроки, виводи команд, відповіді на контрольні запитання.
 
 Попередня практика з теоретичною схемою StudySwap у Kubernetes — [docs/practice9](../practice9/).
 
 ## Розподіл
 
-| Рівень | Хто | Що зроблено |
-|---|---|---|
-| 60 | Розробник 1 | локальний запуск і 6 ендпоінтів, Docker-образ, Minikube, Namespace / ConfigMap / Secret / Deployment / Service, доступ через `kubectl port-forward` |
-| 75 | Розробник 1 | `APP_MODE` dev → prod: після `kubectl apply` Pod досі бачить `dev`, після `kubectl rollout restart` — `prod`; liveness `/healthz` і readiness `/ready` через `kubectl describe pod` |
-| 90 | Розробник 1 | Ingress на `k8s-demo.local` через `minikube tunnel`, debug-команди для Pod / Service / Ingress, самовідновлення Pod-а після `kubectl delete pod` |
-| 100 | Розробник 2 | бекенд StudySwap у Kubernetes (Deployment + Service, ConfigMap) — розділ 100 у `REPORT.md` |
+| Хто | Що зроблено |
+|---|---|
+| Розробник 1 | локальний запуск і 6 ендпоінтів, Docker-образ, Minikube, Namespace / ConfigMap / Secret / Deployment / Service, доступ через `kubectl port-forward` |
+| Розробник 1 | `APP_MODE` dev → prod: після `kubectl apply` Pod досі бачить `dev`, після `kubectl rollout restart` — `prod`; liveness `/healthz` і readiness `/ready` через `kubectl describe pod` |
+| Розробник 1 | Ingress на `k8s-demo.local` через `minikube tunnel`, debug-команди для Pod / Service / Ingress, самовідновлення Pod-а після `kubectl delete pod` |
+| Розробник 2 | бекенд StudySwap у Kubernetes (Deployment + Service, ConfigMap) — окремий розділ у `REPORT.md` |
 
 ## Шлях запиту
 
