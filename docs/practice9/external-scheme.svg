@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1640" height="860" viewBox="0 0 1640 860" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+  </defs>
+
+  <rect width="1640" height="860" fill="#ffffff"/>
+
+  <!-- Заголовок -->
+  <text x="30" y="48" font-size="28" font-weight="bold" fill="#0f172a">StudySwap у Kubernetes — зовнішня схема</text>
+  <text x="30" y="80" font-size="17" fill="#475569">Практична 9, завдання 2: шлях запиту User → DNS → Load Balancer → Ingress → Kubernetes cluster</text>
+
+  <!-- 1. User -->
+  <rect x="30" y="200" width="190" height="150" rx="12" fill="#f1f5f9" stroke="#334155" stroke-width="2"/>
+  <text x="125" y="240" font-size="20" font-weight="bold" text-anchor="middle" fill="#0f172a">User / Client</text>
+  <text x="125" y="272" font-size="15" text-anchor="middle" fill="#334155">браузер студента</text>
+  <text x="125" y="294" font-size="15" text-anchor="middle" fill="#334155">або адміна</text>
+  <text x="125" y="330" font-size="14" text-anchor="middle" fill="#64748b">https://studyswap.com</text>
+
+  <!-- 2. DNS -->
+  <rect x="270" y="200" width="230" height="150" rx="12" fill="#fef9c3" stroke="#a16207" stroke-width="2"/>
+  <text x="385" y="240" font-size="20" font-weight="bold" text-anchor="middle" fill="#0f172a">DNS</text>
+  <text x="385" y="272" font-size="15" text-anchor="middle" fill="#334155">запис типу A:</text>
+  <text x="385" y="298" font-size="15" font-weight="bold" text-anchor="middle" fill="#713f12">studyswap.com</text>
+  <text x="385" y="322" font-size="15" text-anchor="middle" fill="#334155">→ 203.0.113.10</text>
+
+  <!-- 3. Load Balancer -->
+  <rect x="550" y="200" width="240" height="150" rx="12" fill="#e0f2fe" stroke="#0369a1" stroke-width="2"/>
+  <text x="670" y="240" font-size="20" font-weight="bold" text-anchor="middle" fill="#0f172a">Load Balancer</text>
+  <text x="670" y="268" font-size="15" text-anchor="middle" fill="#334155">хмарний, IP 203.0.113.10</text>
+  <text x="670" y="292" font-size="15" text-anchor="middle" fill="#334155">порти 80 / 443</text>
+  <text x="670" y="316" font-size="15" text-anchor="middle" fill="#334155">розкидає з'єднання</text>
+  <text x="670" y="338" font-size="15" text-anchor="middle" fill="#334155">на Node-и кластера</text>
+
+  <!-- Kubernetes cluster -->
+  <rect x="830" y="120" width="780" height="450" rx="16" fill="#f8fafc" stroke="#326ce5" stroke-width="3"/>
+  <text x="850" y="152" font-size="20" font-weight="bold" fill="#326ce5">Kubernetes cluster</text>
+  <text x="1590" y="152" font-size="14" text-anchor="end" fill="#64748b">Node-и: node-1, node-2, node-3</text>
+
+  <!-- Namespace -->
+  <rect x="845" y="166" width="750" height="388" rx="12" fill="#f0fdf4" stroke="#15803d" stroke-width="2" stroke-dasharray="10 6"/>
+  <text x="862" y="192" font-size="16" font-weight="bold" fill="#15803d">Namespace: studyswap-prod</text>
+
+  <!-- 4. Ingress -->
+  <rect x="860" y="205" width="290" height="190" rx="12" fill="#f5f3ff" stroke="#6d28d9" stroke-width="2"/>
+  <text x="1005" y="237" font-size="20" font-weight="bold" text-anchor="middle" fill="#0f172a">Ingress</text>
+  <text x="1005" y="261" font-size="14" text-anchor="middle" fill="#334155">studyswap-api-ingress</text>
+  <text x="1005" y="281" font-size="14" text-anchor="middle" fill="#334155">виконує контролер ingress-nginx</text>
+  <text x="1005" y="307" font-size="14" text-anchor="middle" fill="#334155">TLS: сертифікат для</text>
+  <text x="1005" y="325" font-size="14" text-anchor="middle" fill="#334155">studyswap.com</text>
+  <text x="1005" y="353" font-size="14" text-anchor="middle" fill="#6d28d9" font-weight="bold">Host + Path → Service</text>
+  <text x="1005" y="375" font-size="13" text-anchor="middle" fill="#64748b">правила — у таблиці нижче</text>
+
+  <!-- Services -->
+  <rect x="1220" y="205" width="360" height="95" rx="10" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+  <text x="1238" y="235" font-size="18" font-weight="bold" fill="#0f172a">Service studyswap-api-svc</text>
+  <text x="1238" y="259" font-size="14" fill="#334155">ClusterIP, порт 80 → targetPort 3000</text>
+  <text x="1238" y="281" font-size="14" fill="#334155">бекенд (Express 5 + SQLite)</text>
+
+  <rect x="1220" y="320" width="360" height="75" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="1238" y="348" font-size="17" font-weight="bold" fill="#475569">Service studyswap-web-svc</text>
+  <text x="1238" y="372" font-size="14" fill="#64748b">ClusterIP, порт 80 · фронтенд (Nginx)</text>
+
+  <!-- Далі — завдання 3 -->
+  <rect x="860" y="420" width="720" height="115" rx="12" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="10 8"/>
+  <text x="1220" y="458" font-size="17" text-anchor="middle" fill="#64748b">Далі всередині namespace — завдання 3 (design.md)</text>
+  <text x="1220" y="486" font-size="15" text-anchor="middle" fill="#64748b">Deployment studyswap-api → Pod-и з label app=studyswap-api, PVC studyswap-data</text>
+  <text x="1220" y="512" font-size="15" text-anchor="middle" fill="#64748b">Пунктир — фронтенд: у кластері є, але в цій практиці не моделюється</text>
+
+  <!-- Стрілки -->
+  <line x1="220" y1="275" x2="266" y2="275" stroke="#334155" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text x="245" y="190" font-size="14" font-weight="bold" text-anchor="middle" fill="#334155">1</text>
+  <text x="245" y="378" font-size="13" text-anchor="middle" fill="#475569">яка IP</text>
+  <text x="245" y="394" font-size="13" text-anchor="middle" fill="#475569">у домену?</text>
+
+  <line x1="500" y1="275" x2="546" y2="275" stroke="#334155" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text x="525" y="190" font-size="14" font-weight="bold" text-anchor="middle" fill="#334155">2</text>
+  <text x="525" y="378" font-size="13" text-anchor="middle" fill="#475569">HTTPS на</text>
+  <text x="525" y="394" font-size="13" text-anchor="middle" fill="#475569">203.0.113.10</text>
+
+  <line x1="790" y1="275" x2="856" y2="275" stroke="#334155" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text x="820" y="190" font-size="14" font-weight="bold" text-anchor="middle" fill="#334155">3</text>
+  <text x="822" y="378" font-size="13" text-anchor="end" fill="#475569">TCP :443</text>
+
+  <line x1="1150" y1="268" x2="1216" y2="252" stroke="#334155" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text x="1184" y="248" font-size="14" font-weight="bold" text-anchor="middle" fill="#334155">/api</text>
+  <line x1="1150" y1="330" x2="1216" y2="352" stroke="#94a3b8" stroke-width="2.5" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
+  <text x="1182" y="370" font-size="14" font-weight="bold" text-anchor="middle" fill="#64748b">/</text>
+
+  <!-- Правила Ingress -->
+  <text x="30" y="625" font-size="20" font-weight="bold" fill="#0f172a">Що робить Ingress: правила маршрутизації (Host = studyswap.com)</text>
+
+  <rect x="30" y="645" width="1580" height="44" fill="#f1f5f9" stroke="#cbd5e1"/>
+  <text x="50" y="674" font-size="16" font-weight="bold" fill="#0f172a">Path</text>
+  <text x="300" y="674" font-size="16" font-weight="bold" fill="#0f172a">Service : порт</text>
+  <text x="620" y="674" font-size="16" font-weight="bold" fill="#0f172a">Що бачить сервіс</text>
+  <text x="1010" y="674" font-size="16" font-weight="bold" fill="#0f172a">Приклад</text>
+
+  <rect x="30" y="689" width="1580" height="44" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="50" y="718" font-size="16" fill="#334155">/api/…</text>
+  <text x="300" y="718" font-size="16" fill="#334155">studyswap-api-svc : 80 → Pod :3000</text>
+  <text x="620" y="718" font-size="16" fill="#334155">шлях без префікса /api</text>
+  <text x="1010" y="718" font-size="16" fill="#334155">GET /api/materials?q=БД  →  GET /materials?q=БД</text>
+
+  <rect x="30" y="733" width="1580" height="44" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="50" y="762" font-size="16" fill="#334155">/ (усе інше)</text>
+  <text x="300" y="762" font-size="16" fill="#334155">studyswap-web-svc : 80 (поза моделлю)</text>
+  <text x="620" y="762" font-size="16" fill="#334155">шлях без змін</text>
+  <text x="1010" y="762" font-size="16" fill="#334155">GET /  →  index.html, app.js, styles.css</text>
+
+  <text x="30" y="812" font-size="15" fill="#475569">Інший Host (не studyswap.com) → 404 від Ingress. Перевіряється найдовший Path: /api/… спершу, потім /.</text>
+  <text x="30" y="836" font-size="15" fill="#475569">Адмінка окремого шляху не має: права адміна перевіряє API за роллю в JWT (наприклад, POST /api/reports/:id/decision).</text>
+</svg>
