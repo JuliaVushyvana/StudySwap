@@ -42,4 +42,4 @@ Ingress:       studyswap.local → /etc/hosts 127.0.0.1 → minikube tunnel → 
 
 ## Попередній варіант на тестовому сервісі
 
-Спершу лабораторну виконано у fork-у [JuliaVushyvana/k8s-demo](https://github.com/JuliaVushyvana/k8s-demo) ([REPORT.md](https://github.com/JuliaVushyvana/k8s-demo/blob/main/REPORT.md)): рівні 60–90 — на демо-сервісі, рівень 100 (бекенд StudySwap у Kubernetes) — Розробник 2. Маніфести StudySwap у `k8s/` цього репозиторію виросли з маніфестів рівня 100.
+Спершу лабораторну виконано у fork-у [JuliaVushyvana/k8s-demo](https://github.com/JuliaVushyvana/k8s-demo) ([REPORT.md](https://github.com/JuliaVushyvana/k8s-demo/blob/main/REPORT.md)): рівні 60–90 — на демо-сервісі, рівень 100 — бекенд StudySwap у Kubernetes. Маніфести StudySwap у `k8s/` цього репозиторію виросли з маніфестів рівня 100.
