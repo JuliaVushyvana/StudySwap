@@ -14,7 +14,7 @@
 | `replicas: 2`, RollingUpdate | `replicas: 1`, `strategy: Recreate` | у файл SQLite одночасно може писати лише один процес |
 | `secret.yaml` у git | `kubectl create secret` з випадковим `JWT_SECRET` | ключ підпису токенів не комітимо |
 | — | PVC `studyswap-data` 1Gi | база й завантажені файли мають переживати перезапуск Pod-а |
-| namespace `k8s-demo`, host `k8s-demo.local` | namespace `studyswap`, host `studyswap.local` | |
+| namespace `k8s-demo`, host `k8s-demo.local` | namespace `studyswap`, host `studyswap.local` | названо за проєктом: ресурси StudySwap лежать в окремому namespace і не змішуються з демо-сервісом, а за host зрозуміло, який застосунок відповідає |
 
 Маніфести:
 
